@@ -1,0 +1,50 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Expo / React Native
+.expo/
+.expo-shared/
+web-build/
+metro-cache/
+
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+*.apk
+*.aab
+*.keystore
+*.jks
+local.properties
+
+# iOS / Xcode
+ios/Pods/
+ios/build/
+*.xcworkspace
+*.xcuserdata
+*.xcuserstate
+
+# Environment / secrets
+.env
+.env.*.local
+google-services.json
+
+# IDEs and OS files
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs, coverage, and build artifacts
+*.log
+coverage/
+dist/
+build/
+
+# Misc
+npm-packages-offline-cache/
+/.expo/*
+

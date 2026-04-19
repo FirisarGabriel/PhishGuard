@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "PhishGuardUI",
+    "slug": "PhishGuardUI",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "scheme": "phishguard",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.gabi35793621.PhishGuardUI"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "EXPO_PUBLIC_SUPABASE_URL": "https://ejbvkzhseuxruwcogudu.supabase.co",
+      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqYnZremhzZXV4cnV3Y29ndWR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwNzQ4MjMsImV4cCI6MjA3OTY1MDgyM30.6XdwFzNUNXBJsY5hw4wJqzsozlcSbUZ5kTHoDZV4ic0",
+      "router": {},
+      "eas": {
+        "projectId": "99af34b4-6c8e-40c7-ad1c-be5ecc9290d2"
+      }
+    }
+  }
+}

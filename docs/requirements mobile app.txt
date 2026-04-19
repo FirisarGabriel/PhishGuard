@@ -1,0 +1,95 @@
+PART I 
+
+This is the first and most critical step in our project series. You will create a comprehensive proposal for the mobile application you intend to build throughout the semester. This blueprint will serve as the master plan for the upcoming assignments, including the UI design, local database implementation, and full-stack server integration.
+
+A thoughtful and detailed plan now will make all future development stages significantly smoother. Your proposal should be clear enough for a non-technical client to understand the vision, yet detailed enough for a developer to see the technical path forward.
+
+Your proposal document must include:
+1. Application Concept & Value Proposition: Write a clear, concise pitch for your application. Who are the target users? What problem does your app solve or what value does it provide? This should be written in simple, non-technical language.
+
+2. Core Data Model: Define the primary data entities your application will manage (e.g., User, Task, InventoryItem, Workout). For each entity, list its key attributes (fields) and briefly describe their purpose and data type (e.g., title: String, isCompleted: Boolean).
+
+3. User Roles & Feature Breakdown: Describe the different types of users your app will support (you must have at least two, e.g., Admin and Regular User). Create a list of features, clearly indicating which are unique to each role and which are shared by all roles.
+
+4. Offline Strategy & Synchronization Plan: Explain how your application will function without an internet connection. Specify what data will be stored on the device for offline access. Describe the user experience when offline (e.g., read-only access, ability to create new items that sync later) and outline your strategy for synchronizing local changes with the server once the connection is restored.
+
+5. UI/UX Mockups: Create simple, low-fidelity mockups or wireframes for the most critical screens of your application. You can use tools like Figma, Sketch, or even draw them neatly. You must include mockups for the main list screen and the screen for adding/editing an item.
+
+✅ Check the rubric for detailed expectations!
+
+Your proposal will be graded on the clarity, feasibility, and completeness of your vision across all five areas.
+
+PART II
+
+
+Design and implement a high-fidelity, UI-only mobile application prototype that focuses on the complete user authentication and onboarding experience. While no backend or database logic is required, the interface should be fully interactive, demonstrating all necessary user flows and feedback states.
+
+Your application prototype should:
+Design a polished Login/Signup Screen with a clean, intuitive, and visually appealing layout. Ensure it has clear input fields, strong visual hierarchy, and a responsive design that adapts well to various screen sizes.
+
+Implement the UI for multiple authentication methods, including Google/Apple, Email/Password, and Anonymous sign-in. The provider buttons must be easily identifiable and should follow official branding guidelines.
+
+Create mock UI states for user feedback and error handling. This includes demonstrating real-time input validation (e.g., "Invalid email format"), clear error messages for failed login attempts, and loading indicators for sign-in operations. The goal is to show how the app would communicate with the user.
+
+Integrate a UI flow for biometric login (Face ID / fingerprint). This should include a prompt to enable biometrics after the first login and a clear way to use it on subsequent launches. Critically, you must also design the fallback option to use a password if biometrics fail.
+
+Ensure the entire UI is consistent and accessible. Use a consistent color palette, typography, and spacing. Follow platform-specific design guidelines (e.g., Material Design for Android or Human Interface Guidelines for iOS) and implement accessibility best practices like sufficient color contrast.
+
+✅ Check the rubric details for this assignment!
+
+The rubric contains detailed expectations for the quality of the user interface, implementation of authentication options, user feedback states, and overall design consistency.
+
+PART III
+
+Convert your previous UI-only project into a fully functional mobile application that uses a local database for storing data and supports multiple user roles.
+
+Your application should:
+
+Implement a local database to store user credentials, authentication data, and other necessary app data.
+
+Support multiple authentication methods (Google/Apple, Email/Password, Anonymous) and ensure that successful login leads to proper data loading from the local database.
+
+Include two distinct user roles (e.g., Regular User and Admin), each with at least two unique features and at least two shared features accessible by both roles.
+
+Securely store sensitive data, using encryption or platform-provided secure storage for credentials and private information.
+
+Handle shared vs. private data correctly, ensuring users can only access the data that belongs to their role or account.
+
+Provide biometric login support (Face ID / fingerprint) as a way to re-authenticate users locally, with a fallback to password/email if biometric login fails.
+
+Ensure good user feedback and error handling – for example, real-time updates when database changes occur, clear error messages, and loading indicators for slow operations.
+
+Follow clean architecture principles (e.g., MVVM, repository pattern) to separate UI from business logic and make the project maintainable.
+
+✅ Check the rubric details for this assignment!
+The rubric contains detailed expectations for database integration, role management, authentication, data security, and code quality.
+
+PART IV
+
+Take your mobile application to the next level by transforming it into a full-stack solution. You will connect your app to a remote backend server, turning your local database into a cache for a true online/offline experience.
+
+The primary goal is to manage data and authentication remotely, ensuring the app is responsive, reliable, and provides clear feedback to the user about its network state.
+
+Your application should:
+Connect to a Remote Backend: Implement a data layer that communicates with a remote REST or GraphQL API for all data operations (Create, Read, Update, Delete).
+
+Implement Remote Authentication: Your login and registration flows must now communicate with server endpoints. Upon successful login, the app should securely receive and store an authentication token (e.g., JWT) and use it for all subsequent authenticated API requests.
+
+Synchronize Data: Fetch data from the server to populate the app. Any changes made by the user (like adding or editing items) must be sent to the server to be persisted. The UI should update automatically to reflect the synchronized data.
+
+Provide Offline Support: Use your local database as a cache. The app should be able to display stale data from the local cache if the network is unavailable, allowing for read-only access. When the network connection is restored, it should attempt to fetch the latest data.
+
+Handle Network States and Errors Gracefully: Give the user clear feedback during network operations. This includes showing loading indicators while fetching data and displaying user-friendly error messages (e.g., "Unable to connect to the server," "An unknown error occurred") instead of crashing or freezing.
+
+Maintain Clean Architecture: Extend your existing architecture (e.g., MVVM with Repository Pattern) to handle remote data sources. The repository should be responsible for deciding whether to fetch data from the network or load it from the local cache, abstracting this complexity away from your UI/ViewModels.
+
+✅ Check the rubric details for this assignment!
+
+The rubric contains detailed expectations for API integration, remote authentication, data synchronization, offline capabilities, and architectural quality.
+
+The PhishGuard home screen should be clean and airy: a white app bar with the title on the left and a small settings icon on the right, followed by a subtle tagline. Center stage, a pyramid of three large circular buttons—“Training” at the top (largest, book icon), “Classic Quiz” bottom-left (question icon), and “Visual Quiz” bottom-right (image icon)—all white with soft shadows, thin borders, and gentle tap feedback. Use modern semi-bold headings, neutral gray body text, generous whitespace, and a subtle accent only for focus states; optionally show a discreet offline banner under the header (“You’re offline — showing cached content”).
+
+To promote legitimate products
+
+ID3192
+Thrk5JSqoA

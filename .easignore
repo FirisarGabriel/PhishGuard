@@ -1,0 +1,22 @@
+node_modules
+.expo
+android
+ios
+dist
+web-build
+
+# IMPORTANT: keep app root files
+!package.json
+!package-lock.json
+!app.json
+!eas.json
+!tsconfig.json
+!babel.config.js
+!metro.config.js
+
+# keep source
+!app/**
+!src/**
+!assets/**
+!index.js
+!App.js
