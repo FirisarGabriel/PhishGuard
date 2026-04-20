@@ -9,6 +9,8 @@ import {
 } from "../../src/secure";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { getCurrentUser } from "../../src/auth/service";
+import { theme } from "../../src/theme";
+import { ui } from "../../src/ui";
 
 export default function BiometricEnable() {
   const { user } = useAuth();
@@ -76,25 +78,25 @@ export default function BiometricEnable() {
   const disabled = resolving || saving || !userId;
 
   return (
-    <View style={{ flex: 1, padding: 24, justifyContent: "center", gap: 16 }}>
-      <Text style={{ fontSize: 22, fontWeight: "700" }}>
+    <View style={{ ...ui.screenPadded, justifyContent: "center", gap: 16 }}>
+      <Text style={theme.typography.titleMd}>
         Enable biometric login?
       </Text>
-      <Text style={{ opacity: 0.7 }}>
+      <Text style={{ opacity: 0.7, color: theme.colors.muted }}>
         Use fingerprint to sign in faster next time. You can change this later in Settings.
       </Text>
 
       {/* mic debug helper, ca să vezi dacă userId chiar există */}
-      <Text style={{ fontSize: 12, opacity: 0.6 }}>
+      <Text style={{ fontSize: 12, opacity: 0.6, color: theme.colors.muted }}>
         userId: {userId ?? "(resolving...)"}{" "}
       </Text>
 
-      {err ? <Text style={{ color: "red" }}>{err}</Text> : null}
+      {err ? <Text style={{ color: theme.colors.error }}>{err}</Text> : null}
 
       {disabled ? (
         <View style={{ alignItems: "center", gap: 8 }}>
           <ActivityIndicator />
-          <Text style={{ opacity: 0.7 }}>Preparing secure settings…</Text>
+          <Text style={{ opacity: 0.7, color: theme.colors.muted }}>Preparing secure settings…</Text>
         </View>
       ) : null}
 
@@ -103,10 +105,7 @@ export default function BiometricEnable() {
         disabled={disabled}
         accessibilityLabel="Enable biometrics"
         style={{
-          padding: 14,
-          borderWidth: 1,
-          borderRadius: 12,
-          alignItems: "center",
+          ...ui.button,
           opacity: disabled ? 0.5 : 1,
         }}
       >
@@ -118,10 +117,7 @@ export default function BiometricEnable() {
         disabled={disabled}
         accessibilityLabel="Not now"
         style={{
-          padding: 14,
-          borderWidth: 1,
-          borderRadius: 12,
-          alignItems: "center",
+          ...ui.button,
           opacity: disabled ? 0.5 : 0.8,
         }}
       >

@@ -6,6 +6,7 @@ import * as Network from "expo-network";
 
 import { useRole } from "../src/auth/useRole";
 import { useAuth } from "../src/auth/AuthProvider";
+import { theme } from "../src/theme";
 
 function CircleButton({
   label,
@@ -174,21 +175,21 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "white", paddingHorizontal: 20, paddingTop: 14 },
+  container: { flex: 1, backgroundColor: theme.colors.bg, paddingHorizontal: 20, paddingTop: 14 },
   appBar: { height: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   appTitle: { fontSize: 20, fontWeight: "700" },
-  tagline: { marginTop: 4, color: "#6b7280" },
+  tagline: { marginTop: 4, color: theme.colors.muted },
 
   offlineBanner: {
     marginTop: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: theme.colors.cardMuted,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: theme.colors.border,
   },
-  offlineText: { fontSize: 12, color: "#6b7280", textAlign: "center" },
+  offlineText: { fontSize: 12, color: theme.colors.muted, textAlign: "center" },
 
   bottomSection: {
     paddingBottom: 28,
@@ -198,12 +199,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "center" },
 
   circle: {
-    backgroundColor: "white",
+    backgroundColor: theme.colors.card,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: theme.colors.border,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
+    shadowColor: theme.colors.shadow,
     shadowOpacity: 0.08,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     paddingTop: 20,
     paddingRight: 16,
-    backgroundColor: "rgba(0,0,0,0.03)",
+    backgroundColor: theme.colors.overlaySoft,
     overflow: "hidden",
   },
 });

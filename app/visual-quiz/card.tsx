@@ -259,7 +259,7 @@ export default function VisualQuizCard() {
         alignItems: "center",
         justifyContent: "center",
         borderColor: theme.colors.border,
-        backgroundColor: "white",
+        backgroundColor: theme.colors.card,
         opacity: 0.6,
       } as const;
     }
@@ -281,7 +281,7 @@ export default function VisualQuizCard() {
         : correct
         ? theme.colors.success
         : theme.colors.border,
-      backgroundColor: wrong ? "#fee2e2" : correct ? "#dcfce7" : "white",
+      backgroundColor: wrong ? theme.colors.errorBg : correct ? theme.colors.successBg : theme.colors.card,
       opacity: answered && !pressed ? 0.7 : 1,
     } as const;
   };
@@ -291,7 +291,7 @@ export default function VisualQuizCard() {
       <View
         style={{
           flex: 1,
-          backgroundColor: "white",
+          backgroundColor: theme.colors.card,
           alignItems: "center",
           justifyContent: "center",
         }}
@@ -306,7 +306,7 @@ export default function VisualQuizCard() {
       <View
         style={{
           flex: 1,
-          backgroundColor: "white",
+          backgroundColor: theme.colors.card,
           alignItems: "center",
           justifyContent: "center",
           padding: 24,
@@ -326,7 +326,7 @@ export default function VisualQuizCard() {
   const variantTitle = getVisualQuizVariantById(variant)?.title ?? "Beginner";
 
   return (
-    <View style={{ flex: 1, backgroundColor: "white", padding: 16 }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.card, padding: 16 }}>
       {/* header / progress */}
       <Text style={{ color: theme.colors.muted, marginBottom: 4 }}>
         {variantTitle}
@@ -352,12 +352,12 @@ export default function VisualQuizCard() {
               borderWidth: 1,
               borderColor: theme.colors.border,
               overflow: "hidden",
-              shadowColor: "#000",
+              shadowColor: theme.colors.shadow,
               shadowOpacity: 0.08,
               shadowRadius: 8,
               shadowOffset: { width: 0, height: 4 },
               elevation: 5,
-              backgroundColor: "white",
+              backgroundColor: theme.colors.card,
             }}
           >
             <Image
@@ -431,7 +431,7 @@ export default function VisualQuizCard() {
         <View
           style={{
             flex: 1,
-            backgroundColor: "rgba(0,0,0,0.35)",
+            backgroundColor: theme.colors.overlayBackdrop,
             alignItems: "center",
             justifyContent: "center",
             padding: 24,
@@ -439,7 +439,7 @@ export default function VisualQuizCard() {
         >
           <View
             style={{
-              backgroundColor: "white",
+              backgroundColor: theme.colors.card,
               paddingVertical: 22,
               paddingHorizontal: 20,
               borderRadius: 16,
@@ -475,3 +475,4 @@ export default function VisualQuizCard() {
     </View>
   );
 }
+

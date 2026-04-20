@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 
 import { theme } from "../../src/theme";
+import { ui } from "../../src/ui";
 import { ErrorBanner } from "../../src/Feedback";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useRole } from "../../src/auth/useRole";
@@ -234,14 +235,8 @@ export default function ClassicQuizEdit() {
             value={title}
             onChangeText={setTitle}
             placeholder="e.g. Email Red Flags"
-            placeholderTextColor="#6b7280"
-            style={{
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
-              padding: 12,
-              backgroundColor: "white",
-            }}
+            placeholderTextColor={theme.colors.muted}
+            style={ui.input}
           />
         </View>
 
@@ -251,14 +246,8 @@ export default function ClassicQuizEdit() {
             value={description}
             onChangeText={setDescription}
             placeholder="One-line description"
-            placeholderTextColor="#6b7280"
-            style={{
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
-              padding: 12,
-              backgroundColor: "white",
-            }}
+            placeholderTextColor={theme.colors.muted}
+            style={ui.input}
           />
         </View>
 
@@ -268,14 +257,8 @@ export default function ClassicQuizEdit() {
             value={slug}
             onChangeText={setSlug}
             placeholder="Auto-generated from title if empty"
-            placeholderTextColor="#6b7280"
-            style={{
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
-              padding: 12,
-              backgroundColor: "white",
-            }}
+            placeholderTextColor={theme.colors.muted}
+            style={ui.input}
           />
           <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
             Leave empty to auto-generate a unique slug.
@@ -286,12 +269,9 @@ export default function ClassicQuizEdit() {
         {isEdit && (
           <View
             style={{
+              ...ui.card,
               marginTop: 6,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
               padding: 12,
-              backgroundColor: theme.colors.card,
               gap: 10,
             }}
           >
@@ -301,16 +281,13 @@ export default function ClassicQuizEdit() {
               <Pressable
                 onPress={goToAddQuestion}
                 style={({ pressed }) => ({
+                  ...ui.button,
                   opacity: pressed ? 0.85 : 1,
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 8,
-                  borderWidth: 1,
-                  borderColor: theme.colors.border,
-                  borderRadius: theme.radius,
                   paddingVertical: 8,
                   paddingHorizontal: 10,
-                  backgroundColor: "white",
                 })}
               >
                 <Ionicons name="add" size={18} />
@@ -331,11 +308,9 @@ export default function ClassicQuizEdit() {
                 <View
                   key={qq.id}
                   style={{
+                    ...ui.card,
                     borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    borderRadius: theme.radius,
                     padding: 10,
-                    backgroundColor: "white",
                     gap: 8,
                   }}
                 >
@@ -350,12 +325,10 @@ export default function ClassicQuizEdit() {
                         onPress={() => goToEditQuestion(qq.id)}
                         hitSlop={10}
                         style={({ pressed }) => ({
+                          ...ui.card,
                           opacity: pressed ? 0.7 : 1,
                           padding: 6,
                           borderRadius: 999,
-                          borderWidth: 1,
-                          borderColor: theme.colors.border,
-                          backgroundColor: "white",
                         })}
                       >
                         <Ionicons name="pencil" size={16} />
@@ -365,12 +338,10 @@ export default function ClassicQuizEdit() {
                         onPress={() => onDeleteQuestion(qq)}
                         hitSlop={10}
                         style={({ pressed }) => ({
+                          ...ui.card,
                           opacity: pressed ? 0.7 : 1,
                           padding: 6,
                           borderRadius: 999,
-                          borderWidth: 1,
-                          borderColor: theme.colors.border,
-                          backgroundColor: "white",
                         })}
                       >
                         <Ionicons name="trash" size={16} />
@@ -399,14 +370,10 @@ export default function ClassicQuizEdit() {
           onPress={() => router.back()}
           disabled={saving}
           style={({ pressed }) => ({
+            ...ui.button,
             opacity: pressed ? 0.8 : 1,
             flex: 1,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
             padding: 14,
-            alignItems: "center",
-            backgroundColor: "white",
           })}
         >
           <Text style={{ fontWeight: "700" }}>Back</Text>
@@ -416,14 +383,10 @@ export default function ClassicQuizEdit() {
           onPress={onSave}
           disabled={saving}
           style={({ pressed }) => ({
+            ...ui.button,
             opacity: saving ? 0.6 : pressed ? 0.85 : 1,
             flex: 1,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
             padding: 14,
-            alignItems: "center",
-            backgroundColor: "white",
           })}
         >
           <Text style={{ fontWeight: "800" }}>{saving ? "Saving..." : "Save quiz"}</Text>
@@ -432,3 +395,5 @@ export default function ClassicQuizEdit() {
     </View>
   );
 }
+
+

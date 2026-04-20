@@ -3,6 +3,7 @@ import { View, Text, Pressable } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { theme } from "../../src/theme";
 import { finishAttempt } from "../../src/repos/quiz";
+import { ui } from "../../src/ui";
 
 export default function QuizResults() {
   const router = useRouter();
@@ -30,8 +31,8 @@ export default function QuizResults() {
   }, [attemptId, s]);
 
   return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
-      <Text style={{ fontSize: 26, fontWeight: "700" }}>Quiz Completed!</Text>
+    <View style={{ ...ui.screenPadded, ...ui.centered }}>
+      <Text style={theme.typography.titleXl}>Quiz Completed!</Text>
       <Text style={{ marginTop: 8, fontSize: 18, color: theme.colors.muted }}>
         You scored {s} out of {t} ({pct}%)
       </Text>
@@ -40,12 +41,9 @@ export default function QuizResults() {
         <Pressable
           onPress={() => router.replace("/classic-quiz")}
           style={{
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
+            ...ui.button,
             paddingVertical: 12,
             paddingHorizontal: 24,
-            backgroundColor: "white",
           }}
           accessibilityLabel="Back to Classic Quizzes"
         >
@@ -55,12 +53,9 @@ export default function QuizResults() {
         <Pressable
           onPress={() => router.replace("/home")}
           style={{
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
+            ...ui.button,
             paddingVertical: 12,
             paddingHorizontal: 24,
-            backgroundColor: "white",
           }}
           accessibilityLabel="Back to Home"
         >
@@ -70,3 +65,5 @@ export default function QuizResults() {
     </View>
   );
 }
+
+

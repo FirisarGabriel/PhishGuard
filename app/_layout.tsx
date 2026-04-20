@@ -10,12 +10,13 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { runMigrations } from "../src/db";
 import { seedLessons, seedQuizzes } from "../src/db/seed";
 import { AuthProvider } from "../src/auth/AuthProvider";
+import { theme } from "../src/theme";
 
 function RootFrame({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      <SafeAreaView style={{ flex: 1, backgroundColor: "white" }} edges={["top"]}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }} edges={["top"]}>
         {children}
       </SafeAreaView>
     </SafeAreaProvider>
@@ -48,7 +49,7 @@ export default function RootLayout() {
   if (error) {
     return (
       <RootFrame>
-        <View style={{ flex: 1, backgroundColor: "white", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <View style={{ flex: 1, backgroundColor: theme.colors.bg, alignItems: "center", justifyContent: "center", padding: 24 }}>
           <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 8 }}>
             Eroare la inițializarea DB
           </Text>
@@ -61,7 +62,7 @@ export default function RootLayout() {
   if (!dbReady) {
     return (
       <RootFrame>
-        <View style={{ flex: 1, backgroundColor: "white", alignItems: "center", justifyContent: "center" }}>
+        <View style={{ flex: 1, backgroundColor: theme.colors.bg, alignItems: "center", justifyContent: "center" }}>
           <ActivityIndicator />
           <Text style={{ marginTop: 12 }}>Se pregătește baza de date…</Text>
         </View>

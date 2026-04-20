@@ -162,7 +162,7 @@ export default function LessonDetail() {
             borderRadius: theme.radius,
             padding: 14,
             alignItems: "center",
-            backgroundColor: "white",
+            backgroundColor: theme.colors.card,
           })}
           accessibilityLabel="Mark lesson as done"
         >
@@ -174,3 +174,5 @@ export default function LessonDetail() {
     </View>
   );
 }
+
+

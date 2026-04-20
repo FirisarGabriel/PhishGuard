@@ -95,7 +95,7 @@ export default function QuizQuestion() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: "white" }} contentContainerStyle={{ padding: 20 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.card }} contentContainerStyle={{ padding: 20 }}>
       <Text style={{ fontSize: 18, fontWeight: "700" }}>
         Question {index + 1} of {total}
       </Text>
@@ -119,7 +119,7 @@ export default function QuizQuestion() {
                   : wrong
                   ? theme.colors.error
                   : theme.colors.border,
-                backgroundColor: pressed ? "#f9fafb" : "white",
+                backgroundColor: pressed ? theme.colors.cardPressed : theme.colors.card,
                 borderRadius: theme.radius,
                 padding: 14,
               }}
@@ -154,7 +154,7 @@ export default function QuizQuestion() {
           borderRadius: theme.radius,
           alignItems: "center",
           opacity: showFeedback ? 1 : 0.6,
-          backgroundColor: "white",
+          backgroundColor: theme.colors.card,
         }}
         accessibilityLabel={isLast ? "Finish Quiz" : "Next Question"}
       >
@@ -163,3 +163,5 @@ export default function QuizQuestion() {
     </ScrollView>
   );
 }
+
+

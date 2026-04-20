@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from "react-native";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
+import { theme } from "./theme";
 
 type Kind = "google" | "apple" | "anonymous";
 
@@ -7,9 +8,9 @@ export default function ProviderButton({
   kind, onPress, disabled
 }: { kind: Kind; onPress: () => void; disabled?: boolean; }) {
   const map = {
-    google: { label: "Continue with Google", icon: <AntDesign name="google" size={18} />, bg: "white", border:"#e5e7eb" },
-    apple:  { label: "Continue with Apple",  icon: <AntDesign name="apple" size={18} />, bg: "black", border:"black" },
-    anonymous: { label: "Continue as Guest", icon: <Ionicons name="person-outline" size={18} />, bg: "white", border:"#e5e7eb" },
+    google: { label: "Continue with Google", bg: theme.colors.card, border: theme.colors.border, text: theme.colors.text },
+    apple:  { label: "Continue with Apple", bg: theme.colors.text, border: theme.colors.text, text: theme.colors.textInverse },
+    anonymous: { label: "Continue as Guest", bg: theme.colors.card, border: theme.colors.border, text: theme.colors.text },
   } as const;
 
   const s = map[kind];
@@ -35,13 +36,13 @@ export default function ProviderButton({
     >
       <View>
         {kind === "apple"
-          ? <AntDesign name="apple" size={18} color={s.bg === "black" ? "white" : "black"} />
+          ? <AntDesign name="apple" size={18} color={s.text} />
           : kind === "google"
-            ? <AntDesign name="google" size={18} color={s.bg === "black" ? "white" : "black"} />
-            : <Ionicons name="person-outline" size={18} color={s.bg === "black" ? "white" : "black"} />
+            ? <AntDesign name="google" size={18} color={s.text} />
+            : <Ionicons name="person-outline" size={18} color={s.text} />
         }
       </View>
-      <Text style={{ color: s.bg === "black" ? "white" : "black" }}>{s.label}</Text>
+      <Text style={{ color: s.text }}>{s.label}</Text>
     </Pressable>
   );
 }

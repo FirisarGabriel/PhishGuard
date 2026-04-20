@@ -14,6 +14,8 @@ import {
   setBiometricEnabled,
   setHasSeenBiometricPrompt,
 } from "../../src/secure";
+import { theme } from "../../src/theme";
+import { ui } from "../../src/ui";
 
 export default function Signup() {
   const [name, setName] = useState("");
@@ -71,59 +73,55 @@ export default function Signup() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 24, justifyContent: "center", gap: 12 }}>
-      <Text style={{ fontSize: 24, fontWeight: "700" }}>Create account</Text>
+    <View style={{ ...ui.screenPadded, justifyContent: "center", gap: 12 }}>
+      <Text style={theme.typography.titleLg}>Create account</Text>
 
       <TextInput
         value={name}
         onChangeText={setName}
         placeholder="Full name"
-        placeholderTextColor="#6b7280"
+        placeholderTextColor={theme.colors.muted}
         autoCapitalize="words"
-        style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}
+        style={ui.input}
       />
 
       <TextInput
         value={email}
         onChangeText={setEmail}
         placeholder="email@example.com"
-        placeholderTextColor="#6b7280"
+        placeholderTextColor={theme.colors.muted}
         autoCapitalize="none"
         keyboardType="email-address"
         textContentType="emailAddress"
-        style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}
+        style={ui.input}
       />
       {!isEmailValid && email.length > 0 && (
-        <Text style={{ fontSize: 12, color: "red" }}>Invalid email format</Text>
+        <Text style={{ fontSize: 12, color: theme.colors.error }}>Invalid email format</Text>
       )}
 
       <TextInput
         value={pass}
         onChangeText={setPass}
         placeholder="password"
-        placeholderTextColor="#6b7280"
+        placeholderTextColor={theme.colors.muted}
         secureTextEntry
         textContentType="newPassword"
-        style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}
+        style={ui.input}
       />
       {!isStrong && pass.length > 0 && (
-        <Text style={{ fontSize: 12, color: "orange" }}>
+        <Text style={{ fontSize: 12, color: theme.colors.warning }}>
           Use at least 6 characters
         </Text>
       )}
 
-      {err ? <Text style={{ fontSize: 13, color: "red" }}>{err}</Text> : null}
+      {err ? <Text style={{ fontSize: 13, color: theme.colors.error }}>{err}</Text> : null}
 
       <Pressable
         onPress={onSignup}
         disabled={!canSubmit}
         style={{
-          padding: 14,
-          borderRadius: 12,
-          alignItems: "center",
+          ...ui.button,
           opacity: canSubmit ? 1 : 0.6,
-          borderWidth: 1,
-          backgroundColor: "white",
         }}
         accessibilityLabel="Create account with email and password"
       >

@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 
 import { theme } from "../../src/theme";
+import { ui } from "../../src/ui";
 import { ErrorBanner } from "../../src/Feedback";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useRole } from "../../src/auth/useRole";
@@ -181,14 +182,8 @@ export default function TrainingEdit() {
             value={title}
             onChangeText={setTitle}
             placeholder="e.g. Email spoofing basics"
-            placeholderTextColor="#6b7280"
-            style={{
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
-              padding: 12,
-              backgroundColor: "white",
-            }}
+            placeholderTextColor={theme.colors.muted}
+            style={ui.input}
           />
         </View>
 
@@ -198,14 +193,8 @@ export default function TrainingEdit() {
             value={summary}
             onChangeText={setSummary}
             placeholder="Short 1–2 lines description"
-            placeholderTextColor="#6b7280"
-            style={{
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
-              padding: 12,
-              backgroundColor: "white",
-            }}
+            placeholderTextColor={theme.colors.muted}
+            style={ui.input}
           />
         </View>
 
@@ -215,16 +204,12 @@ export default function TrainingEdit() {
             value={content}
             onChangeText={setContent}
             placeholder={"Write lesson text here...\nUse new lines for paragraphs."}
-            placeholderTextColor="#6b7280"
+            placeholderTextColor={theme.colors.muted}
             multiline
             textAlignVertical="top"
             style={{
               minHeight: 180,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
-              padding: 12,
-              backgroundColor: "white",
+              ...ui.input,
             }}
           />
         </View>
@@ -236,14 +221,8 @@ export default function TrainingEdit() {
             onChangeText={setOrderText}
             keyboardType="number-pad"
             placeholder="Leave empty to auto place last"
-            placeholderTextColor="#6b7280"
-            style={{
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
-              padding: 12,
-              backgroundColor: "white",
-            }}
+            placeholderTextColor={theme.colors.muted}
+            style={ui.input}
           />
           <Text style={{ color: theme.colors.muted, fontSize: 12 }}>
             Tip: if empty, it will be added after the last training.
@@ -266,14 +245,10 @@ export default function TrainingEdit() {
           onPress={() => router.back()}
           disabled={saving}
           style={({ pressed }) => ({
+            ...ui.button,
             opacity: pressed ? 0.8 : 1,
             flex: 1,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
             padding: 14,
-            alignItems: "center",
-            backgroundColor: "white",
           })}
         >
           <Text style={{ fontWeight: "700" }}>Cancel</Text>
@@ -283,14 +258,10 @@ export default function TrainingEdit() {
           onPress={onSave}
           disabled={saving}
           style={({ pressed }) => ({
+            ...ui.button,
             opacity: saving ? 0.6 : pressed ? 0.85 : 1,
             flex: 1,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
             padding: 14,
-            alignItems: "center",
-            backgroundColor: "white",
           })}
         >
           <Text style={{ fontWeight: "800" }}>
@@ -301,3 +272,5 @@ export default function TrainingEdit() {
     </View>
   );
 }
+
+

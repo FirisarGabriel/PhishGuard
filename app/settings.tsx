@@ -7,6 +7,8 @@ import { resetAllProgress } from "../src/repos/lessons";
 import { signOut } from "../src/auth/service";
 import { useAuth } from "../src/auth/AuthProvider";
 import { useRole } from "../src/auth/useRole";
+import { theme } from "../src/theme";
+import { ui } from "../src/ui";
 
 export default function Settings() {
   const [enabled, setEnabled] = useState<boolean>(false);
@@ -141,7 +143,7 @@ export default function Settings() {
 
   if (loading || roleLoading || !userId) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ ...ui.screen, ...ui.centered }}>
         <ActivityIndicator />
         <Text style={{ marginTop: 8 }}>Loading…</Text>
       </View>
@@ -149,8 +151,8 @@ export default function Settings() {
   }
 
   return (
-    <View style={{ flex: 1, padding: 24, backgroundColor: "white" }}>
-      <Text style={{ fontSize: 22, fontWeight: "700", marginBottom: 12 }}>
+    <View style={ui.screenPadded}>
+      <Text style={{ ...theme.typography.titleMd, marginBottom: 12 }}>
         Settings
       </Text>
 
@@ -159,26 +161,26 @@ export default function Settings() {
         <Text style={{ fontSize: 16 }}>Use biometric login</Text>
         <Switch value={enabled} onValueChange={onToggleBiometrics} />
       </View>
-      <Text style={{ color: "#6b7280" }}>
+      <Text style={{ color: theme.colors.muted }}>
         You can also enable this after your first login.
       </Text>
 
       {/* Admin Mode (doar admin) */}
       {isAdmin && (
         <>
-          <View style={{ height: 1, backgroundColor: "#e5e7eb", marginVertical: 20 }} />
+          <View style={ui.divider} />
 
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12 }}>
             <Text style={{ fontSize: 16 }}>Admin Mode</Text>
             <Switch value={adminMode} onValueChange={onToggleAdminMode} />
           </View>
-          <Text style={{ color: "#6b7280" }}>
+          <Text style={{ color: theme.colors.muted }}>
             When enabled, you will see editing controls for lessons and quizzes.
           </Text>
         </>
       )}
 
-      <View style={{ height: 1, backgroundColor: "#e5e7eb", marginVertical: 20 }} />
+      <View style={ui.divider} />
 
       <View>
         <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
@@ -189,23 +191,18 @@ export default function Settings() {
           disabled={resetting}
           style={({ pressed }) => ({
             opacity: resetting || pressed ? 0.8 : 1,
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            borderRadius: 12,
-            padding: 14,
-            alignItems: "center",
-            backgroundColor: "white",
+            ...ui.button,
           })}
           accessibilityLabel="Reset all lesson progress"
         >
           {resetting ? <ActivityIndicator /> : <Text style={{ fontWeight: "600" }}>Reset lesson progress</Text>}
         </Pressable>
-        <Text style={{ color: "#6b7280", marginTop: 8 }}>
+        <Text style={{ color: theme.colors.muted, marginTop: 8 }}>
           Clears the local completion status for all lessons.
         </Text>
       </View>
 
-      <View style={{ height: 1, backgroundColor: "#e5e7eb", marginVertical: 20 }} />
+      <View style={ui.divider} />
 
       <View style={{ marginBottom: 24 }}>
         <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
@@ -217,12 +214,7 @@ export default function Settings() {
           disabled={loggingOut}
           style={({ pressed }) => ({
             opacity: loggingOut || pressed ? 0.8 : 1,
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            borderRadius: 12,
-            padding: 14,
-            alignItems: "center",
-            backgroundColor: "white",
+            ...ui.button,
             marginBottom: 8,
           })}
           accessibilityLabel="Log out"
@@ -230,7 +222,7 @@ export default function Settings() {
           {loggingOut ? <ActivityIndicator /> : <Text style={{ fontWeight: "600" }}>Log out</Text>}
         </Pressable>
 
-        <Text style={{ color: "#6b7280" }}>
+        <Text style={{ color: theme.colors.muted }}>
           Logs you out on this device. Your progress stays saved locally.
         </Text>
       </View>

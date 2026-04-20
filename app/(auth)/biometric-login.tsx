@@ -6,6 +6,8 @@ import { router } from "expo-router";
 import { signOut } from "../../src/auth/service";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { getBiometricEnabled, getHasSeenBiometricPrompt } from "../../src/secure";
+import { theme } from "../../src/theme";
+import { ui } from "../../src/ui";
 
 export default function BiometricLogin() {
   const { user, biometricLocked, unlockBiometric } = useAuth();
@@ -110,7 +112,7 @@ export default function BiometricLogin() {
 
   if (checking) {
     return (
-      <View style={{ flex: 1, padding: 24, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ ...ui.screenPadded, ...ui.centered }}>
         <ActivityIndicator />
         <Text style={{ marginTop: 10 }}>Checking device biometrics…</Text>
       </View>
@@ -118,20 +120,17 @@ export default function BiometricLogin() {
   }
 
   return (
-    <View style={{ flex: 1, padding: 24, justifyContent: "center", gap: 16 }}>
-      <Text style={{ fontSize: 22, fontWeight: "700" }}>Biometric login</Text>
-      <Text style={{ opacity: 0.7 }}>Authenticate with your device biometrics (Android).</Text>
+    <View style={{ ...ui.screenPadded, justifyContent: "center", gap: 16 }}>
+      <Text style={theme.typography.titleMd}>Biometric login</Text>
+      <Text style={{ opacity: 0.7, color: theme.colors.muted }}>Authenticate with your device biometrics (Android).</Text>
 
-      {error ? <Text style={{ color: "red" }}>{String(error)}</Text> : null}
+      {error ? <Text style={{ color: theme.colors.error }}>{String(error)}</Text> : null}
 
       <Pressable
         onPress={doAuth}
         disabled={loading}
         style={{
-          padding: 14,
-          borderWidth: 1,
-          borderRadius: 12,
-          alignItems: "center",
+          ...ui.button,
           opacity: loading ? 0.7 : 1,
         }}
       >
@@ -141,10 +140,7 @@ export default function BiometricLogin() {
       <Pressable
         onPress={usePasswordInstead}
         style={{
-          padding: 14,
-          borderWidth: 1,
-          borderRadius: 12,
-          alignItems: "center",
+          ...ui.button,
           opacity: 0.8,
         }}
       >

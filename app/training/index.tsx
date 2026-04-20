@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { ErrorBanner } from "../../src/Feedback";
 import { theme } from "../../src/theme";
+import { ui } from "../../src/ui";
 import ProgressBar from "../../src/ProgressBar";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useRole } from "../../src/auth/useRole";
@@ -174,9 +175,7 @@ export default function LessonList() {
         <Pressable
           onPress={load}
           style={{
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
+            ...ui.button,
             padding: 12,
           }}
         >
@@ -189,7 +188,7 @@ export default function LessonList() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg, padding: 16 }}>
       {/* Header */}
-      <Text style={{ fontSize: 24, fontWeight: "700" }}>Training</Text>
+      <Text style={theme.typography.titleLg}>Training</Text>
       <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
         Short lessons you can finish fast.
       </Text>
@@ -198,16 +197,10 @@ export default function LessonList() {
       <View style={{ marginTop: 12, marginBottom: 8 }}>
         <TextInput
           placeholder="Search lessons"
-          placeholderTextColor="#6b7280"
+          placeholderTextColor={theme.colors.muted}
           value={q}
           onChangeText={setQ}
-          style={{
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
-            padding: 12,
-            backgroundColor: "white",
-          }}
+          style={ui.input}
         />
       </View>
 
@@ -223,16 +216,13 @@ export default function LessonList() {
           <Pressable
             onPress={goToCreate}
             style={({ pressed }) => ({
+              ...ui.button,
               opacity: pressed ? 0.85 : 1,
               flexDirection: "row",
               alignItems: "center",
               gap: 8,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
               paddingVertical: 10,
               paddingHorizontal: 12,
-              backgroundColor: theme.colors.card,
             })}
           >
             <Ionicons name="add" size={18} />
@@ -257,12 +247,9 @@ export default function LessonList() {
             <Pressable
               onPress={() => goToLesson(item.id)}
               style={({ pressed }) => ({
+                ...ui.card,
                 opacity: pressed ? 0.8 : 1,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                borderRadius: theme.radius,
                 padding: 14,
-                backgroundColor: theme.colors.card,
               })}
             >
               {/* Title row + admin buttons */}
@@ -284,12 +271,10 @@ export default function LessonList() {
                       onPress={() => goToEdit(item.id)}
                       hitSlop={10}
                       style={({ pressed }) => ({
+                        ...ui.card,
                         opacity: pressed ? 0.7 : 1,
                         padding: 6,
                         borderRadius: 999,
-                        borderWidth: 1,
-                        borderColor: theme.colors.border,
-                        backgroundColor: "white",
                       })}
                     >
                       <Ionicons name="pencil" size={16} />
@@ -299,12 +284,10 @@ export default function LessonList() {
                       onPress={() => onDelete(item)}
                       hitSlop={10}
                       style={({ pressed }) => ({
+                        ...ui.card,
                         opacity: pressed ? 0.7 : 1,
                         padding: 6,
                         borderRadius: 999,
-                        borderWidth: 1,
-                        borderColor: theme.colors.border,
-                        backgroundColor: "white",
                       })}
                     >
                       <Ionicons name="trash" size={16} />
@@ -334,3 +317,5 @@ export default function LessonList() {
     </View>
   );
 }
+
+

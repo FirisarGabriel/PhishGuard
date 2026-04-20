@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { theme } from "../../src/theme";
 import { ErrorBanner } from "../../src/Feedback";
+import { ui } from "../../src/ui";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useRole } from "../../src/auth/useRole";
 
@@ -173,11 +174,8 @@ export default function ClassicQuizList() {
         <Pressable
           onPress={load}
           style={{
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
+            ...ui.button,
             padding: 12,
-            backgroundColor: "white",
           }}
         >
           <Text>Retry</Text>
@@ -189,7 +187,7 @@ export default function ClassicQuizList() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg, padding: 16 }}>
       {/* Header */}
-      <Text style={{ fontSize: 24, fontWeight: "700" }}>Classic Quizzes</Text>
+      <Text style={theme.typography.titleLg}>Classic Quizzes</Text>
       <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
         Choose a quiz and test your phishing detection.
       </Text>
@@ -198,16 +196,10 @@ export default function ClassicQuizList() {
       <View style={{ marginTop: 12, marginBottom: 8 }}>
         <TextInput
           placeholder="Search quizzes"
-          placeholderTextColor="#6b7280"
+          placeholderTextColor={theme.colors.muted}
           value={q}
           onChangeText={setQ}
-          style={{
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
-            padding: 12,
-            backgroundColor: "white",
-          }}
+          style={ui.input}
         />
       </View>
 
@@ -223,16 +215,13 @@ export default function ClassicQuizList() {
           <Pressable
             onPress={goToCreate}
             style={({ pressed }) => ({
+              ...ui.button,
               opacity: pressed ? 0.85 : 1,
               flexDirection: "row",
               alignItems: "center",
               gap: 8,
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
               paddingVertical: 10,
               paddingHorizontal: 12,
-              backgroundColor: theme.colors.card,
             })}
           >
             <Ionicons name="add" size={18} />
@@ -261,12 +250,9 @@ export default function ClassicQuizList() {
               onPress={() => onStart(item)}
               disabled={starting}
               style={({ pressed }) => ({
+                ...ui.card,
                 opacity: pressed || starting ? 0.8 : 1,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                borderRadius: theme.radius,
                 padding: 14,
-                backgroundColor: theme.colors.card,
               })}
               accessibilityLabel={`Start ${item.title}`}
             >
@@ -281,12 +267,10 @@ export default function ClassicQuizList() {
                           onPress={() => goToEdit(item.id)}
                           hitSlop={10}
                           style={({ pressed }) => ({
+                            ...ui.card,
                             opacity: pressed ? 0.7 : 1,
                             padding: 6,
                             borderRadius: 999,
-                            borderWidth: 1,
-                            borderColor: theme.colors.border,
-                            backgroundColor: "white",
                           })}
                         >
                           <Ionicons name="pencil" size={16} />
@@ -296,12 +280,10 @@ export default function ClassicQuizList() {
                           onPress={() => onDelete(item)}
                           hitSlop={10}
                           style={({ pressed }) => ({
+                            ...ui.card,
                             opacity: pressed ? 0.7 : 1,
                             padding: 6,
                             borderRadius: 999,
-                            borderWidth: 1,
-                            borderColor: theme.colors.border,
-                            backgroundColor: "white",
                           })}
                         >
                           <Ionicons name="trash" size={16} />
@@ -313,8 +295,8 @@ export default function ClassicQuizList() {
                   {/* Divider */}
                   <View
                     style={{
+                      ...ui.divider,
                       height: 1,
-                      backgroundColor: theme.colors.border,
                       marginVertical: 8,
                     }}
                   />
@@ -340,3 +322,5 @@ export default function ClassicQuizList() {
     </View>
   );
 }
+
+

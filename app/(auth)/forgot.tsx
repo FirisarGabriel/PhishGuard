@@ -4,6 +4,8 @@ import { router } from "expo-router";
 
 // Supabase auth service (password reset via email)
 import { sendPasswordReset } from "../../src/auth/service";
+import { theme } from "../../src/theme";
+import { ui } from "../../src/ui";
 
 export default function Forgot() {
   const [email, setEmail] = useState("");
@@ -30,30 +32,26 @@ export default function Forgot() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 24, justifyContent: "center", gap: 12 }}>
-      <Text style={{ fontSize: 22, fontWeight: "700" }}>Reset password</Text>
+    <View style={{ ...ui.screenPadded, justifyContent: "center", gap: 12 }}>
+      <Text style={theme.typography.titleMd}>Reset password</Text>
 
       <TextInput
         value={email}
         onChangeText={setEmail}
         placeholder="email@example.com"
-        placeholderTextColor="#6b7280"
+        placeholderTextColor={theme.colors.muted}
         autoCapitalize="none"
         keyboardType="email-address"
         textContentType="emailAddress"
-        style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}
+        style={ui.input}
       />
 
       <Pressable
         onPress={onSend}
         disabled={!isEmailValid || loading}
         style={{
-          padding: 14,
-          borderRadius: 12,
-          alignItems: "center",
+          ...ui.button,
           opacity: isEmailValid && !loading ? 1 : 0.6,
-          borderWidth: 1,
-          backgroundColor: "white",
         }}
         accessibilityLabel="Send password reset email"
       >

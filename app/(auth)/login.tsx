@@ -11,6 +11,8 @@ import { Link, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import ProviderButton from "../../src/ProviderButton";
 import { ErrorBanner, LoadingOverlay } from "../../src/Feedback";
+import { theme } from "../../src/theme";
+import { ui } from "../../src/ui";
 
 import { signIn } from "../../src/auth/service";
 import { signInWithGoogle, signInWithApple, signInAnonymously } from "../../src/auth/service";
@@ -141,21 +143,21 @@ export default function Login() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 24, justifyContent: "center", gap: 12 }}>
-      <Text style={{ fontSize: 24, fontWeight: "700" }}>Welcome back</Text>
+    <View style={{ ...ui.screenPadded, justifyContent: "center", gap: 12 }}>
+      <Text style={theme.typography.titleLg}>Welcome back</Text>
 
       <TextInput
         value={email}
         onChangeText={setEmail}
         placeholder="email@example.com"
-        placeholderTextColor="#6b7280"
+        placeholderTextColor={theme.colors.muted}
         autoCapitalize="none"
         keyboardType="email-address"
         textContentType="emailAddress"
-        style={{ borderWidth: 1, borderRadius: 12, padding: 12 }}
+        style={ui.input}
       />
       {!isEmailValid && email.length > 0 && (
-        <Text style={{ fontSize: 12, color: "red" }}>Invalid email format</Text>
+        <Text style={{ fontSize: 12, color: theme.colors.error }}>Invalid email format</Text>
       )}
 
       <View style={{ position: "relative" }}>
@@ -163,13 +165,11 @@ export default function Login() {
           value={pass}
           onChangeText={setPass}
           placeholder="password"
-          placeholderTextColor="#6b7280"
+          placeholderTextColor={theme.colors.muted}
           secureTextEntry={!show}
           textContentType="password"
           style={{
-            borderWidth: 1,
-            borderRadius: 12,
-            padding: 12,
+            ...ui.input,
             paddingRight: 44,
           }}
         />
@@ -188,11 +188,8 @@ export default function Login() {
         onPress={onSignIn}
         disabled={!canSubmit}
         style={{
-          padding: 14,
-          borderRadius: 12,
-          alignItems: "center",
+          ...ui.button,
           opacity: canSubmit ? 1 : 0.6,
-          borderWidth: 1,
         }}
         accessibilityLabel="Sign in with email and password"
       >
@@ -208,7 +205,7 @@ export default function Login() {
         </Link>
       </View>
 
-      <View style={{ height: 1, backgroundColor: "#ddd", marginVertical: 14 }} />
+      <View style={{ ...ui.divider, backgroundColor: theme.colors.divider, marginVertical: 14 }} />
       <Text style={{ textAlign: "center" }}>Or continue with</Text>
 
       <View style={{ gap: 12, alignItems: "center", marginTop: 8 }}>

@@ -7,7 +7,7 @@ export default function ProgressBar({ value }: { value: number }) {
     <View
       style={{
         height: 10,
-        backgroundColor: "#f3f4f6",
+        backgroundColor: theme.colors.cardMuted,
         borderRadius: 999,
         borderWidth: 1,
         borderColor: theme.colors.border,

@@ -221,7 +221,7 @@ function VisualCardRow({
             overflow: "hidden",
             borderWidth: 1,
             borderColor: theme.colors.border,
-            backgroundColor: "white",
+            backgroundColor: theme.colors.card,
           }}
         >
           <Image
@@ -272,7 +272,7 @@ function VisualCardRow({
                   borderRadius: 999,
                   paddingVertical: 6,
                   paddingHorizontal: 10,
-                  backgroundColor: "white",
+                  backgroundColor: theme.colors.card,
                 })}
               >
                 <Text style={{ fontSize: 12, fontWeight: "600" }}>Easier</Text>
@@ -289,7 +289,7 @@ function VisualCardRow({
                   borderRadius: 999,
                   paddingVertical: 6,
                   paddingHorizontal: 10,
-                  backgroundColor: "white",
+                  backgroundColor: theme.colors.card,
                 })}
               >
                 <Text style={{ fontSize: 12, fontWeight: "600" }}>Harder</Text>
@@ -309,7 +309,7 @@ function VisualCardRow({
               borderRadius: 999,
               borderWidth: 1,
               borderColor: theme.colors.border,
-              backgroundColor: "white",
+              backgroundColor: theme.colors.card,
             })}
           >
             <Ionicons name="chevron-up" size={18} />
@@ -325,7 +325,7 @@ function VisualCardRow({
               borderRadius: 999,
               borderWidth: 1,
               borderColor: theme.colors.border,
-              backgroundColor: "white",
+              backgroundColor: theme.colors.card,
             })}
           >
             <Ionicons name="chevron-down" size={18} />
@@ -342,7 +342,7 @@ function VisualCardRow({
             borderRadius: 999,
             borderWidth: 1,
             borderColor: theme.colors.border,
-            backgroundColor: "white",
+            backgroundColor: theme.colors.card,
           })}
         >
           <Ionicons name="trash" size={18} />
@@ -743,7 +743,7 @@ export default function VisualQuizIntro() {
                   borderColor: theme.colors.border,
                   borderRadius: theme.radius,
                   padding: 16,
-                  backgroundColor: "white",
+                  backgroundColor: theme.colors.card,
                   gap: 6,
                 })}
                 accessibilityLabel={`Start ${item.title} visual quiz`}
@@ -837,9 +837,9 @@ export default function VisualQuizIntro() {
                 borderRadius: 16,
                 paddingVertical: 12,
                 paddingHorizontal: 14,
-                backgroundColor: isSelected ? theme.colors.card : "white",
+                backgroundColor: theme.colors.card,
                 justifyContent: "space-between",
-                shadowColor: "#000",
+                shadowColor: theme.colors.shadow,
                 shadowOpacity: isSelected ? 0.06 : 0.03,
                 shadowRadius: 6,
                 shadowOffset: { width: 0, height: 3 },
@@ -967,3 +967,4 @@ export default function VisualQuizIntro() {
     </View>
   );
 }
+

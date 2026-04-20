@@ -12,6 +12,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { theme } from "../../src/theme";
+import { ui } from "../../src/ui";
 import { ErrorBanner } from "../../src/Feedback";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useRole } from "../../src/auth/useRole";
@@ -270,14 +271,11 @@ export default function ClassicQuizEditQuestion() {
             value={text}
             onChangeText={setText}
             placeholder="Write the question..."
-            placeholderTextColor="#6b7280"
+            placeholderTextColor={theme.colors.muted}
             multiline
             style={{
+              ...ui.input,
               borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
-              padding: 12,
-              backgroundColor: "white",
               minHeight: 90,
               textAlignVertical: "top",
             }}
@@ -290,14 +288,11 @@ export default function ClassicQuizEditQuestion() {
             value={explanation}
             onChangeText={setExplanation}
             placeholder="Shown after the answer"
-            placeholderTextColor="#6b7280"
+            placeholderTextColor={theme.colors.muted}
             multiline
             style={{
+              ...ui.input,
               borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
-              padding: 12,
-              backgroundColor: "white",
               minHeight: 70,
               textAlignVertical: "top",
             }}
@@ -311,24 +306,16 @@ export default function ClassicQuizEditQuestion() {
             onChangeText={setOrderText}
             keyboardType="number-pad"
             placeholder="Leave empty for auto"
-            placeholderTextColor="#6b7280"
-            style={{
-              borderWidth: 1,
-              borderColor: theme.colors.border,
-              borderRadius: theme.radius,
-              padding: 12,
-              backgroundColor: "white",
-            }}
+            placeholderTextColor={theme.colors.muted}
+            style={ui.input}
           />
         </View>
 
         <View
           style={{
+            ...ui.card,
             borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
             padding: 12,
-            backgroundColor: theme.colors.card,
             gap: 10,
           }}
         >
@@ -338,16 +325,13 @@ export default function ClassicQuizEditQuestion() {
             <Pressable
               onPress={addOption}
               style={({ pressed }) => ({
+                ...ui.button,
                 opacity: pressed ? 0.85 : 1,
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 8,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                borderRadius: theme.radius,
                 paddingVertical: 8,
                 paddingHorizontal: 10,
-                backgroundColor: "white",
               })}
             >
               <Ionicons name="add" size={18} />
@@ -361,11 +345,9 @@ export default function ClassicQuizEditQuestion() {
             <View
               key={o.key}
               style={{
+                ...ui.card,
                 borderWidth: 1,
-                borderColor: theme.colors.border,
-                borderRadius: theme.radius,
                 padding: 10,
-                backgroundColor: "white",
                 gap: 8,
               }}
             >
@@ -403,14 +385,8 @@ export default function ClassicQuizEditQuestion() {
                     value={o.text}
                     onChangeText={(v) => updateOptText(o.key, v)}
                     placeholder="Option text..."
-                    placeholderTextColor="#6b7280"
-                    style={{
-                      borderWidth: 1,
-                      borderColor: theme.colors.border,
-                      borderRadius: theme.radius,
-                      padding: 10,
-                      backgroundColor: "white",
-                    }}
+                    placeholderTextColor={theme.colors.muted}
+                    style={{ ...ui.input, padding: 10 }}
                   />
                 </View>
 
@@ -418,12 +394,10 @@ export default function ClassicQuizEditQuestion() {
                   onPress={() => removeOption(o.key)}
                   hitSlop={10}
                   style={({ pressed }) => ({
+                    ...ui.card,
                     opacity: pressed ? 0.7 : 1,
                     padding: 6,
                     borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                    backgroundColor: "white",
                   })}
                   accessibilityLabel={`Remove option ${idx + 1}`}
                 >
@@ -454,14 +428,10 @@ export default function ClassicQuizEditQuestion() {
           onPress={() => router.back()}
           disabled={saving}
           style={({ pressed }) => ({
+            ...ui.button,
             opacity: pressed ? 0.8 : 1,
             flex: 1,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
             padding: 14,
-            alignItems: "center",
-            backgroundColor: "white",
           })}
         >
           <Text style={{ fontWeight: "700" }}>Cancel</Text>
@@ -471,14 +441,10 @@ export default function ClassicQuizEditQuestion() {
           onPress={onSave}
           disabled={saving}
           style={({ pressed }) => ({
+            ...ui.button,
             opacity: saving ? 0.6 : pressed ? 0.85 : 1,
             flex: 1,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
             padding: 14,
-            alignItems: "center",
-            backgroundColor: "white",
           })}
         >
           <Text style={{ fontWeight: "800" }}>
@@ -489,3 +455,5 @@ export default function ClassicQuizEditQuestion() {
     </View>
   );
 }
+
+
