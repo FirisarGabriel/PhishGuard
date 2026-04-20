@@ -12,7 +12,7 @@
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@supabase/supabase-js": "^2.87.1",
-    "expo": "~54.0.30",
+    "expo": "~54.0.33",
     "expo-auth-session": "~7.0.10",
     "expo-constants": "~18.0.12",
     "expo-dev-client": "~6.0.20",
@@ -38,7 +38,7 @@
   "private": true,
   "devDependencies": {
     "@types/react": "~19.1.10",
-    "react-dom": "^19.1.0",
+    "react-dom": "19.1.0",
     "typescript": "~5.9.2"
   }
 }
