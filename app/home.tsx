@@ -199,16 +199,12 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "center" },
 
   circle: {
-    backgroundColor: theme.colors.card,
+    backgroundColor: theme.colors.surface1,
     borderWidth: 1,
     borderColor: theme.colors.border,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: theme.colors.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
+    ...theme.elevation.card,
   },
   circleLabel: { marginTop: 10, fontWeight: "600" },
 

@@ -120,12 +120,14 @@ export default function Signup() {
         onPress={onSignup}
         disabled={!canSubmit}
         style={{
-          ...ui.button,
+          ...ui.buttonPrimary,
           opacity: canSubmit ? 1 : 0.6,
+          backgroundColor: canSubmit ? theme.colors.primary : theme.colors.disabledBg,
+          borderColor: canSubmit ? theme.colors.primary : theme.colors.disabledBg,
         }}
         accessibilityLabel="Create account with email and password"
       >
-        {loading ? <ActivityIndicator /> : <Text>Sign up</Text>}
+        {loading ? <ActivityIndicator color={theme.colors.textInverse} /> : <Text style={{ color: canSubmit ? theme.colors.textInverse : theme.colors.disabledText }}>Sign up</Text>}
       </Pressable>
 
       <View

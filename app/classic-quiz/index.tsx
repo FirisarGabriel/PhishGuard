@@ -216,7 +216,7 @@ export default function ClassicQuizList() {
             onPress={goToCreate}
             style={({ pressed }) => ({
               ...ui.button,
-              opacity: pressed ? 0.85 : 1,
+              backgroundColor: pressed ? theme.colors.cardPressed : theme.colors.surface1,
               flexDirection: "row",
               alignItems: "center",
               gap: 8,
@@ -233,7 +233,7 @@ export default function ClassicQuizList() {
       <FlatList
         data={data}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingVertical: 8 }}
+        contentContainerStyle={{ paddingVertical: 12 }}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -250,8 +250,10 @@ export default function ClassicQuizList() {
               onPress={() => onStart(item)}
               disabled={starting}
               style={({ pressed }) => ({
-                ...ui.card,
-                opacity: pressed || starting ? 0.8 : 1,
+                ...ui.cardElevated,
+                backgroundColor: pressed ? theme.colors.cardPressed : theme.colors.surface1,
+                borderColor: pressed ? theme.colors.borderStrong : theme.colors.border,
+                opacity: starting ? 0.8 : 1,
                 padding: 14,
               })}
               accessibilityLabel={`Start ${item.title}`}

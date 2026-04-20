@@ -803,7 +803,7 @@ export default function VisualQuizIntro() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg, padding: 16 }}>
-      <Text style={{ fontSize: 24, fontWeight: "700" }}>Visual Cards</Text>
+      <Text style={theme.typography.titleLg}>Visual Cards</Text>
       <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
         Admin Mode is ON — manage the visual quiz cards.
       </Text>

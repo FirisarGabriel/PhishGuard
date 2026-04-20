@@ -217,7 +217,7 @@ export default function LessonList() {
             onPress={goToCreate}
             style={({ pressed }) => ({
               ...ui.button,
-              opacity: pressed ? 0.85 : 1,
+              backgroundColor: pressed ? theme.colors.cardPressed : theme.colors.surface1,
               flexDirection: "row",
               alignItems: "center",
               gap: 8,
@@ -235,7 +235,7 @@ export default function LessonList() {
       <FlatList
         data={data}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingVertical: 8 }}
+        contentContainerStyle={{ paddingVertical: 12 }}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -247,8 +247,9 @@ export default function LessonList() {
             <Pressable
               onPress={() => goToLesson(item.id)}
               style={({ pressed }) => ({
-                ...ui.card,
-                opacity: pressed ? 0.8 : 1,
+                ...ui.cardElevated,
+                backgroundColor: pressed ? theme.colors.cardPressed : theme.colors.surface1,
+                borderColor: pressed ? theme.colors.borderStrong : theme.colors.border,
                 padding: 14,
               })}
             >

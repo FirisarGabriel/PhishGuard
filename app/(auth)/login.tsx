@@ -188,12 +188,16 @@ export default function Login() {
         onPress={onSignIn}
         disabled={!canSubmit}
         style={{
-          ...ui.button,
+          ...ui.buttonPrimary,
           opacity: canSubmit ? 1 : 0.6,
+          backgroundColor: canSubmit ? theme.colors.primary : theme.colors.disabledBg,
+          borderColor: canSubmit ? theme.colors.primary : theme.colors.disabledBg,
         }}
         accessibilityLabel="Sign in with email and password"
       >
-        <Text>{loading ? "Signing in..." : "Sign in"}</Text>
+        <Text style={{ color: canSubmit ? theme.colors.textInverse : theme.colors.disabledText }}>
+          {loading ? "Signing in..." : "Sign in"}
+        </Text>
       </Pressable>
 
       <View style={{ flexDirection: "row", justifyContent: "space-between" }}>

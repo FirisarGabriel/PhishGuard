@@ -282,7 +282,7 @@ export default function ClassicQuizEdit() {
                 onPress={goToAddQuestion}
                 style={({ pressed }) => ({
                   ...ui.button,
-                  opacity: pressed ? 0.85 : 1,
+                  backgroundColor: pressed ? theme.colors.cardPressed : theme.colors.surface1,
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 8,

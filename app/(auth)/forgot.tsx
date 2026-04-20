@@ -50,12 +50,14 @@ export default function Forgot() {
         onPress={onSend}
         disabled={!isEmailValid || loading}
         style={{
-          ...ui.button,
+          ...ui.buttonPrimary,
           opacity: isEmailValid && !loading ? 1 : 0.6,
+          backgroundColor: isEmailValid && !loading ? theme.colors.primary : theme.colors.disabledBg,
+          borderColor: isEmailValid && !loading ? theme.colors.primary : theme.colors.disabledBg,
         }}
         accessibilityLabel="Send password reset email"
       >
-        {loading ? <ActivityIndicator /> : <Text>Send reset link</Text>}
+        {loading ? <ActivityIndicator color={theme.colors.textInverse} /> : <Text style={{ color: isEmailValid && !loading ? theme.colors.textInverse : theme.colors.disabledText }}>Send reset link</Text>}
       </Pressable>
     </View>
   );
