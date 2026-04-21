@@ -218,4 +218,19 @@ export async function runMigrations() {
     `,
     `CREATE INDEX IF NOT EXISTS idx_VisualCard_quiz_variant ON VisualCard(quizId, variant)`,
   ]);
+
+  // --- MIGRATION 006: Achievements unlocked by user ---
+  await applyMigration("006-achievements", [
+    `
+    CREATE TABLE IF NOT EXISTS AchievementUnlock (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      achievementId TEXT NOT NULL,
+      unlockedAt INTEGER NOT NULL,
+      UNIQUE(userId, achievementId)
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_AchievementUnlock_user ON AchievementUnlock(userId)`,
+    `CREATE INDEX IF NOT EXISTS idx_AchievementUnlock_achievement ON AchievementUnlock(achievementId)`,
+  ]);
 }

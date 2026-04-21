@@ -10,6 +10,7 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { runMigrations } from "../src/db";
 import { seedLessons, seedQuizzes } from "../src/db/seed";
 import { AuthProvider } from "../src/auth/AuthProvider";
+import { AchievementToastProvider } from "../src/achievements/AchievementToastProvider";
 import { theme } from "../src/theme";
 
 function RootFrame({ children }: { children: React.ReactNode }) {
@@ -73,7 +74,9 @@ export default function RootLayout() {
   return (
     <RootFrame>
       <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }} />
+        <AchievementToastProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </AchievementToastProvider>
       </AuthProvider>
     </RootFrame>
   );

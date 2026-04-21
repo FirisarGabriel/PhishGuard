@@ -3,6 +3,7 @@ import * as SecureStore from "expo-secure-store";
 const KEY_BIOMETRIC = "biometricEnabled";
 const KEY_LAST_EMAIL = "lastLoginEmail";
 const KEY_SEEN_PROMPT = "hasSeenBiometricPrompt";
+const KEY_ACHIEVEMENTS_SEEN_AT = "achievementsSeenAt";
 
 /**
  * Pentru a evita ca preferințele biometrice să se “moștenească” între conturi,
@@ -99,4 +100,24 @@ export async function clearHasSeenBiometricPrompt(userId?: string | null) {
   try {
     await SecureStore.deleteItemAsync(scopedKey(KEY_SEEN_PROMPT, userId));
   } catch (e) { console.warn("SecureStore error:", e); }
+}
+
+/* ─────────────── Achievements badge read state ─────────────── */
+
+export async function getAchievementsSeenAt(userId?: string | null): Promise<number> {
+  try {
+    const v = await SecureStore.getItemAsync(scopedKey(KEY_ACHIEVEMENTS_SEEN_AT, userId));
+    const n = Number(v ?? 0);
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export async function setAchievementsSeenAt(value: number, userId?: string | null): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(scopedKey(KEY_ACHIEVEMENTS_SEEN_AT, userId), String(value));
+  } catch (e) {
+    console.warn("SecureStore error:", e);
+  }
 }

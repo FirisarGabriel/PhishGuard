@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Animated } from "react-native";
+import { View, Text, Pressable, StyleSheet, Animated, Image } from "react-native";
 import { Link } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Network from "expo-network";
 
 import { useRole } from "../src/auth/useRole";
 import { useAuth } from "../src/auth/AuthProvider";
+import { getAchievementsSeenAt } from "../src/secure";
+import { getUnreadAchievementCount } from "../src/repos/achievements";
 import { theme } from "../src/theme";
 
 function CircleButton({
@@ -76,10 +79,12 @@ function CircleButton({
 
 export default function Home() {
   const [offline, setOffline] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const { role, loading: roleLoading } = useRole();
-  const { adminMode } = useAuth(); // preluăm din context
+  const { user, adminMode } = useAuth(); // preluăm din context
   const isAdmin = role === "ADMIN";
+  const userId = user?.id ?? null;
 
   useEffect(() => {
     let mounted = true;
@@ -111,6 +116,31 @@ export default function Home() {
     };
   }, []);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      let alive = true;
+
+      (async () => {
+        if (!userId) {
+          if (alive) setUnreadCount(0);
+          return;
+        }
+
+        try {
+          const seenAt = await getAchievementsSeenAt(userId);
+          const c = await getUnreadAchievementCount(userId, seenAt);
+          if (alive) setUnreadCount(c);
+        } catch {
+          if (alive) setUnreadCount(0);
+        }
+      })();
+
+      return () => {
+        alive = false;
+      };
+    }, [userId])
+  );
+
   const showOverlay = isAdmin && adminMode;
 
   return (
@@ -118,14 +148,32 @@ export default function Home() {
       {/* Header */}
       <View style={styles.appBar}>
         <Text style={styles.appTitle}>PhishGuard</Text>
-        <Link href="/settings" asChild>
-          <Pressable
-            accessibilityLabel="Open settings"
-            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
-          >
-            <Ionicons name="settings-outline" size={22} />
-          </Pressable>
-        </Link>
+        <View style={styles.headerActions}>
+          <Link href="/achievements" asChild>
+            <Pressable
+              accessibilityLabel="Open achievements"
+              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+            >
+              <View>
+                <Ionicons name="trophy-outline" size={21} />
+                {unreadCount > 0 && (
+                  <View style={styles.achievementBadge}>
+                    <Text style={styles.achievementBadgeText}>{unreadCount}</Text>
+                  </View>
+                )}
+              </View>
+            </Pressable>
+          </Link>
+
+          <Link href="/settings" asChild>
+            <Pressable
+              accessibilityLabel="Open settings"
+              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+            >
+              <Ionicons name="settings-outline" size={22} />
+            </Pressable>
+          </Link>
+        </View>
       </View>
 
       <Text style={styles.tagline}>Learn to spot phishing fast.</Text>
@@ -141,7 +189,13 @@ export default function Home() {
         </View>
       )}
 
-      <View style={{ flex: 1 }} />
+      <View style={styles.heroWrap}>
+        <Image
+          source={require("../assets/home_phising_minimalist_ilustration.png")}
+          style={styles.heroImage}
+          resizeMode="cover"
+        />
+      </View>
 
       <View style={styles.bottomSection}>
         <View style={{ alignItems: "center", marginBottom: 24 }}>
@@ -178,6 +232,26 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg, paddingHorizontal: 20, paddingTop: 14 },
   appBar: { height: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   appTitle: { fontSize: 20, fontWeight: "700" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  achievementBadge: {
+    position: "absolute",
+    top: -5,
+    right: -7,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 999,
+    backgroundColor: theme.colors.primary,
+    borderWidth: 1,
+    borderColor: theme.colors.surface1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  achievementBadgeText: {
+    color: theme.colors.textInverse,
+    fontSize: 10,
+    fontWeight: "700",
+  },
   tagline: { marginTop: 4, color: theme.colors.muted },
 
   offlineBanner: {
@@ -190,6 +264,18 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
   },
   offlineText: { fontSize: 12, color: theme.colors.muted, textAlign: "center" },
+
+  heroWrap: {
+    flex: 1,
+    marginHorizontal: -20,
+    paddingTop: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroImage: {
+    width: "100%",
+    height: 230,
+  },
 
   bottomSection: {
     paddingBottom: 28,

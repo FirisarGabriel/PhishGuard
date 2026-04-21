@@ -57,3 +57,10 @@ export type QuizAttempt = {
   variant?: string;
   pendingSync: 0 | 1;
 };
+
+export type AchievementUnlock = {
+  id: string;
+  userId: string;
+  achievementId: string;
+  unlockedAt: number;
+};

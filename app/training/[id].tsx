@@ -5,6 +5,8 @@ import { ErrorBanner } from "../../src/Feedback";
 import ProgressBar from "../../src/ProgressBar";
 import { theme } from "../../src/theme";
 import { useAuth } from "../../src/auth/AuthProvider";
+import { useAchievementToast } from "../../src/achievements/AchievementToastProvider";
+import { evaluateTrainingAchievements } from "../../src/repos/achievements";
 
 // DB
 import { getLessonById, getProgressMap, markProgress } from "../../src/repos/lessons";
@@ -20,6 +22,7 @@ export default function LessonDetail() {
   const [progress, setProgress] = useState(0);
 
   const { user } = useAuth();
+  const { notifyAchievements } = useAchievementToast();
   const userId = user?.id ?? null;
 
   const load = useCallback(async () => {
@@ -77,10 +80,13 @@ export default function LessonDetail() {
     try {
       await markProgress(userId, lesson.id, 100);
       setProgress(100);
+
+      const unlocked = await evaluateTrainingAchievements(userId);
+      notifyAchievements(unlocked);
     } catch (e: any) {
       setErr(e?.message ?? "Failed to save progress.");
     }
-  }, [userId, lesson]);
+  }, [userId, lesson, notifyAchievements]);
 
   if (loading) {
     return (

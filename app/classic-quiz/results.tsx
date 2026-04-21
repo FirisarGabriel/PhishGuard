@@ -3,10 +3,15 @@ import { View, Text, Pressable } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { theme } from "../../src/theme";
 import { finishAttempt } from "../../src/repos/quiz";
+import { evaluateQuizAchievements } from "../../src/repos/achievements";
+import { useAchievementToast } from "../../src/achievements/AchievementToastProvider";
+import { useAuth } from "../../src/auth/AuthProvider";
 import { ui } from "../../src/ui";
 
 export default function QuizResults() {
   const router = useRouter();
+  const { user } = useAuth();
+  const { notifyAchievements } = useAchievementToast();
   const { attemptId, score, total } = useLocalSearchParams<{
     attemptId: string;
     score: string;
@@ -23,12 +28,16 @@ export default function QuizResults() {
       if (attemptId) {
         try {
           await finishAttempt(String(attemptId), s);
+          if (user?.id) {
+            const unlocked = await evaluateQuizAchievements(user.id);
+            notifyAchievements(unlocked);
+          }
         } catch {
           // optional: show a toast/banner if you have one
         }
       }
     })();
-  }, [attemptId, s]);
+  }, [attemptId, s, user?.id, notifyAchievements]);
 
   return (
     <View style={{ ...ui.screenPadded, ...ui.centered }}>

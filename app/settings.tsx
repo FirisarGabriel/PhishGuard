@@ -3,7 +3,9 @@ import { View, Text, Switch, Alert, Pressable, ActivityIndicator } from "react-n
 import { router } from "expo-router";
 
 import { getBiometricEnabled, setBiometricEnabled } from "../src/secure";
+import { setAchievementsSeenAt } from "../src/secure";
 import { resetAllProgress } from "../src/repos/lessons";
+import { resetAllAchievements } from "../src/repos/achievements";
 import { signOut } from "../src/auth/service";
 import { useAuth } from "../src/auth/AuthProvider";
 import { useRole } from "../src/auth/useRole";
@@ -119,6 +121,31 @@ export default function Settings() {
     );
   }, [userId]);
 
+  const onResetAchievementsPress = useCallback(() => {
+    if (!userId) return;
+
+    Alert.alert(
+      "Reset achievements",
+      "This will clear all unlocked achievements on this device for testing.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await resetAllAchievements(userId);
+              await setAchievementsSeenAt(0, userId);
+              Alert.alert("Done", "All achievements were reset.");
+            } catch (e: any) {
+              Alert.alert("Error", e?.message ?? "Failed to reset achievements.");
+            }
+          },
+        },
+      ]
+    );
+  }, [userId]);
+
   const onLogoutPress = useCallback(() => {
     Alert.alert("Log out", "You will need to sign in again next time.", [
       { text: "Cancel", style: "cancel" },
@@ -200,6 +227,25 @@ export default function Settings() {
         <Text style={{ color: theme.colors.muted, marginTop: 8 }}>
           Clears the local completion status for all lessons.
         </Text>
+
+        {__DEV__ && (
+          <>
+            <Pressable
+              onPress={onResetAchievementsPress}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.8 : 1,
+                ...ui.button,
+                marginTop: 12,
+              })}
+              accessibilityLabel="Reset unlocked achievements"
+            >
+              <Text style={{ fontWeight: "600" }}>Reset achievements (dev)</Text>
+            </Pressable>
+            <Text style={{ color: theme.colors.muted, marginTop: 8 }}>
+              Dev-only helper for retesting achievement unlock flows.
+            </Text>
+          </>
+        )}
       </View>
 
       <View style={ui.divider} />
