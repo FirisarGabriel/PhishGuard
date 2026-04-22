@@ -233,4 +233,52 @@ export async function runMigrations() {
     `CREATE INDEX IF NOT EXISTS idx_AchievementUnlock_user ON AchievementUnlock(userId)`,
     `CREATE INDEX IF NOT EXISTS idx_AchievementUnlock_achievement ON AchievementUnlock(achievementId)`,
   ]);
+
+  // --- MIGRATION 007: Block-based training content ---
+  await applyMigration("007-training-blocks", [
+    `
+    CREATE TABLE IF NOT EXISTS TrainingBlock (
+      id TEXT PRIMARY KEY,
+      lessonId TEXT NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT,
+      body TEXT,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      isRequired INTEGER NOT NULL DEFAULT 1,
+      pendingSync INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (lessonId) REFERENCES Lesson(id) ON DELETE CASCADE
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_TrainingBlock_lesson ON TrainingBlock(lessonId)`,
+    `CREATE INDEX IF NOT EXISTS idx_TrainingBlock_lesson_order ON TrainingBlock(lessonId, "order")`,
+
+    `
+    CREATE TABLE IF NOT EXISTS TrainingBlockOption (
+      id TEXT PRIMARY KEY,
+      blockId TEXT NOT NULL,
+      label TEXT NOT NULL,
+      isCorrect INTEGER NOT NULL DEFAULT 0,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (blockId) REFERENCES TrainingBlock(id) ON DELETE CASCADE
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_TrainingBlockOption_block ON TrainingBlockOption(blockId)`,
+
+    `
+    CREATE TABLE IF NOT EXISTS TrainingBlockProgress (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      lessonId TEXT NOT NULL,
+      blockId TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'not_started',
+      selectedOptionId TEXT,
+      isCorrect INTEGER,
+      completedAt INTEGER,
+      pendingSync INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(userId, blockId)
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_TrainingBlockProgress_user_lesson ON TrainingBlockProgress(userId, lessonId)`,
+    `CREATE INDEX IF NOT EXISTS idx_TrainingBlockProgress_user_block ON TrainingBlockProgress(userId, blockId)`,
+  ]);
 }

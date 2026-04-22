@@ -6,189 +6,413 @@ import { QUIZ_QUESTIONS, type QuizQuestion } from "../mockClassicQuiz";
 import { VISUAL_CARDS } from "../mockVisualQuiz";
 import { getDefaultVisualCardVariantByIndex } from "../visualQuiz";
 
-export async function seedLessons() {
-  const count = await execute(`SELECT COUNT(*) as c FROM Lesson`);
-  if ((count.rows[0]?.c ?? 0) > 0) return;
+type SeedQuestionOption = {
+  label: string;
+  isCorrect: boolean;
+};
 
-  const lessons = [
-    {
-      title: "Spotting Suspicious Links",
-      summary: "How to identify malicious links before clicking.",
-      order: 1,
-      content: `
-  Phishing attacks often rely on malicious links to steal your credentials.
+type SeedBlock = {
+  type: "text" | "question_single";
+  title: string;
+  body: string;
+  isRequired?: boolean;
+  options?: SeedQuestionOption[];
+};
 
-  Before clicking any link, it is important to slow down and examine it carefully.
+type SeedLesson = {
+  title: string;
+  legacyTitles: string[];
+  summary: string;
+  order: number;
+  blocks: SeedBlock[];
+};
 
-  WHAT TO CHECK FIRST
-  - Hover over the link to preview the real destination.
-  - Look for misspellings or extra characters in the domain.
-  - Be cautious with shortened URLs.
+const LESSONS_SEED_VERSION = "2026-04-22-v3-structured-blocks";
+const LESSON_BLOCKS_SEED_VERSION = "2026-04-22-v3-structured-blocks";
 
-  COMMON RED FLAGS
-  - Links that use IP addresses instead of domain names.
-  - Unexpected links in emails claiming urgency.
-  - Slight variations of well-known domains.
+const SEED_LESSONS: SeedLesson[] = [
+  {
+    title: "Spot Suspicious Links Before You Tap",
+    legacyTitles: ["Spotting Suspicious Links"],
+    summary: "Learn how to inspect domains, redirects, and shortened links before clicking.",
+    order: 1,
+    blocks: [
+      {
+        type: "text",
+        title: "Why links are dangerous",
+        body:
+          "Most phishing attempts do not need malware. They only need one click on a fake login page. Attackers rely on users reacting fast instead of checking where a link really goes.",
+      },
+      {
+        type: "question_single",
+        title: "Checkpoint",
+        body: "What should you verify first when a message asks you to click a link urgently?",
+        options: [
+          { label: "Whether the email uses a formal greeting.", isCorrect: false },
+          { label: "The real destination domain behind the link.", isCorrect: true },
+          { label: "Whether the sender included a signature.", isCorrect: false },
+        ],
+      },
+      {
+        type: "text",
+        title: "What to inspect",
+        body:
+          "Look at the main domain, not just the first words in the URL. Attackers often hide fake destinations inside long subdomains like paypal.com.verify-login.example.ru. Also treat shortened URLs and IP-based links as high risk until verified.",
+      },
+      {
+        type: "question_single",
+        title: "Quick decision",
+        body: "Which link is the safest sign of a legitimate destination?",
+        options: [
+          { label: "https://microsoft.com.security-check.example.org", isCorrect: false },
+          { label: "https://login.microsoftonline.com", isCorrect: true },
+          { label: "https://microsoft-login-help.net", isCorrect: false },
+        ],
+      },
+      {
+        type: "text",
+        title: "Takeaway",
+        body:
+          "When the stakes are high, never trust a link just because it looks familiar at first glance. Slow down, inspect the domain, and use bookmarks or the official app when possible.",
+      },
+    ],
+  },
+  {
+    title: "Resist Urgency and Fear Tactics",
+    legacyTitles: ["Urgency and Fear Tactics"],
+    summary: "Recognize emotional pressure and pause before acting on threatening messages.",
+    order: 2,
+    blocks: [
+      {
+        type: "text",
+        title: "How attackers create pressure",
+        body:
+          "Phishing messages often manufacture panic: account suspension, missed payroll, legal threat, or failed delivery. The goal is to stop you from verifying the request.",
+      },
+      {
+        type: "question_single",
+        title: "Checkpoint",
+        body: "A message says your account will be locked in 10 minutes unless you act now. What is the safest response?",
+        options: [
+          { label: "Pause and verify through the official website or support channel.", isCorrect: true },
+          { label: "Click immediately because time is limited.", isCorrect: false },
+          { label: "Reply asking the sender for more time.", isCorrect: false },
+        ],
+      },
+      {
+        type: "text",
+        title: "Red flags in urgent messages",
+        body:
+          "Look for extreme deadlines, vague consequences, and generic instructions like 'confirm now' or 'secure your account'. Legitimate organizations can send important alerts, but they do not need you to bypass basic verification.",
+      },
+      {
+        type: "question_single",
+        title: "Quick decision",
+        body: "Which detail most strongly suggests emotional manipulation rather than a normal business request?",
+        options: [
+          { label: "The message explains the issue and tells you to contact official support.", isCorrect: false },
+          { label: "The message threatens immediate punishment unless you click now.", isCorrect: true },
+          { label: "The message includes your full name and department.", isCorrect: false },
+        ],
+      },
+      {
+        type: "text",
+        title: "Takeaway",
+        body:
+          "Urgency is a tactic, not proof. If a message pushes you to skip verification, treat that pressure itself as a warning sign.",
+      },
+    ],
+  },
+  {
+    title: "Verify the Real Sender",
+    legacyTitles: ["Sender Email Address Tricks"],
+    summary: "Check full sender identities, reply-to fields, and domain mismatches before trusting a message.",
+    order: 3,
+    blocks: [
+      {
+        type: "text",
+        title: "Display names can lie",
+        body:
+          "Attackers know people read names faster than addresses. 'Microsoft Support' or 'CEO Office' means nothing if the real sender domain does not match the organization you expect.",
+      },
+      {
+        type: "question_single",
+        title: "Checkpoint",
+        body: "Which sender should raise immediate suspicion?",
+        options: [
+          { label: "IT Helpdesk <helpdesk@company.com>", isCorrect: false },
+          { label: "Payroll Team <payroll@company-payroll.com>", isCorrect: true },
+          { label: "HR Updates <hr@company.com>", isCorrect: false },
+        ],
+      },
+      {
+        type: "text",
+        title: "What else to inspect",
+        body:
+          "Check the full sender address, the reply-to field, and whether the request matches the sender's normal role. A finance request from an HR-branded address is a strong mismatch even if the display name looks clean.",
+      },
+      {
+        type: "question_single",
+        title: "Quick decision",
+        body: "A message looks like it comes from your CEO, but the reply-to points to a public mailbox. What should you do?",
+        options: [
+          { label: "Trust the display name and continue the conversation.", isCorrect: false },
+          { label: "Verify through another trusted channel before responding.", isCorrect: true },
+          { label: "Reply and ask the sender to confirm their identity.", isCorrect: false },
+        ],
+      },
+      {
+        type: "text",
+        title: "Takeaway",
+        body:
+          "A familiar name is not enough. Trust is earned by the full sender identity, the request context, and an independent verification step when something feels off.",
+      },
+    ],
+  },
+  {
+    title: "Handle Attachments Safely",
+    legacyTitles: ["Attachments and Downloads"],
+    summary: "Recognize risky attachments and follow a safer process before opening files.",
+    order: 4,
+    blocks: [
+      {
+        type: "text",
+        title: "Why attachments are effective",
+        body:
+          "Attachments create urgency and curiosity at the same time. An invoice, shared document, or delivery receipt can push users into opening a file before they verify the source.",
+      },
+      {
+        type: "question_single",
+        title: "Checkpoint",
+        body: "Which attachment deserves the highest caution when it arrives unexpectedly?",
+        options: [
+          { label: "Monthly-report.pdf", isCorrect: false },
+          { label: "invoice-details.docm", isCorrect: true },
+          { label: "team-photo.jpg", isCorrect: false },
+        ],
+      },
+      {
+        type: "text",
+        title: "High-risk file patterns",
+        body:
+          "Macro-enabled Office files, compressed archives, disk images, and executable files are common delivery methods for malware. Even PDFs can be malicious if the sender or context is wrong, so the rule is still verify first.",
+      },
+      {
+        type: "question_single",
+        title: "Quick decision",
+        body: "You receive a ZIP file from a vendor you did not expect to hear from. What should you do first?",
+        options: [
+          { label: "Open it and scan later if something looks wrong.", isCorrect: false },
+          { label: "Verify the request with the vendor using a trusted contact method.", isCorrect: true },
+          { label: "Forward it to a colleague to see whether it opens safely.", isCorrect: false },
+        ],
+      },
+      {
+        type: "text",
+        title: "Takeaway",
+        body:
+          "Unexpected file plus urgency is a dangerous mix. If you did not expect the attachment, stop and verify before downloading or opening anything.",
+      },
+    ],
+  },
+  {
+    title: "Question Too-Good-To-Be-True Offers",
+    legacyTitles: ["Too Good to Be True Offers"],
+    summary: "Spot reward, refund, and giveaway scams designed to trigger curiosity and greed.",
+    order: 5,
+    blocks: [
+      {
+        type: "text",
+        title: "Why reward scams work",
+        body:
+          "People react quickly to surprise benefits: refunds, bonuses, gift cards, or prize claims. Attackers exploit excitement in the same way they exploit fear.",
+      },
+      {
+        type: "question_single",
+        title: "Checkpoint",
+        body: "Which message is the strongest sign of a promotional phishing attempt?",
+        options: [
+          { label: "A newsletter pointing you to the official company portal.", isCorrect: false },
+          { label: "A prize claim asking for personal data and immediate action.", isCorrect: true },
+          { label: "A receipt for a purchase you actually made yesterday.", isCorrect: false },
+        ],
+      },
+      {
+        type: "text",
+        title: "Common reward scam signs",
+        body:
+          "Watch for messages from unknown senders, poor grammar, suspicious links, and requests for credentials or payment to unlock a reward. Legitimate promotions do not need your password to give you a prize.",
+      },
+      {
+        type: "question_single",
+        title: "Quick decision",
+        body: "What is the safest way to verify an unexpected refund offer?",
+        options: [
+          { label: "Open the link in the message because it mentions your account.", isCorrect: false },
+          { label: "Visit the official website or app directly and check there.", isCorrect: true },
+          { label: "Reply to ask the sender whether the reward is real.", isCorrect: false },
+        ],
+      },
+      {
+        type: "text",
+        title: "Takeaway",
+        body:
+          "If an offer is unexpected and tries to rush you into sharing data, assume it is unsafe until proven otherwise through an official channel.",
+      },
+    ],
+  },
+];
 
-  EXAMPLE
-  A legitimate link:
-  https://paypal.com/login
+async function ensureSeedStateTable() {
+  await execute(`
+    CREATE TABLE IF NOT EXISTS _seed_state_ (
+      name TEXT PRIMARY KEY,
+      version TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    )
+  `);
+}
 
-  A phishing link:
-  https://paypaI.com.verify-login.ru
+async function getSeedVersion(name: string): Promise<string | null> {
+  await ensureSeedStateTable();
+  const res = await execute(`SELECT version FROM _seed_state_ WHERE name=? LIMIT 1`, [
+    name,
+  ]);
+  return (res.rows?.[0]?.version as string | undefined) ?? null;
+}
 
-  Notice the subtle differences.
+async function setSeedVersion(name: string, version: string) {
+  await ensureSeedStateTable();
+  await execute(
+    `
+    INSERT INTO _seed_state_ (name, version, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(name) DO UPDATE SET version=excluded.version, updated_at=excluded.updated_at
+    `,
+    [name, version, Date.now()]
+  );
+}
 
-  BEST PRACTICES
-  - Type important websites manually in the browser.
-  - Use bookmarks for frequently visited services.
-  - When in doubt, do not click.
+function buildLessonContentFromBlocks(blocks: SeedBlock[]): string {
+  return blocks
+    .filter((block) => block.type === "text")
+    .map((block) => `${block.title}\n${block.body}`.trim())
+    .join("\n\n");
+}
 
-  TAKEAWAY
-  If a link looks even slightly suspicious, do not trust it.
-  `,
-    },
-    {
-      title: "Urgency and Fear Tactics",
-      summary: "Why attackers use pressure and emotional triggers.",
-      order: 2,
-      content: `
-  Phishers often create a sense of urgency to make you act without thinking.
+async function findExistingSeedLesson(seedLesson: SeedLesson): Promise<{ id: string } | null> {
+  const candidateTitles = [seedLesson.title, ...seedLesson.legacyTitles];
+  const placeholders = candidateTitles.map(() => "?").join(", ");
+  const byTitle = await execute(
+    `SELECT id FROM Lesson WHERE title IN (${placeholders}) ORDER BY "order" ASC LIMIT 1`,
+    candidateTitles
+  );
 
-  Messages may claim that your account is at risk or that immediate action is required.
-
-  COMMON URGENCY PHRASES
-  - "Your account will be suspended."
-  - "Immediate action required."
-  - "Last warning."
-
-  WHY THIS WORKS
-  - Stress reduces critical thinking.
-  - Fear pushes users to act quickly.
-  - Authority messages increase compliance.
-
-  HOW TO RESPOND
-  - Pause and take a moment.
-  - Ask yourself if the message makes sense.
-  - Verify the information through official channels.
-
-  RED FLAGS
-  - Deadlines that are extremely short.
-  - Threats without clear explanation.
-  - Requests for sensitive information.
-
-  TAKEAWAY
-  Urgency is a powerful manipulation tool. Slow down before acting.
-  `,
-    },
-    {
-      title: "Sender Email Address Tricks",
-      summary: "How attackers disguise sender identities.",
-      order: 3,
-      content: `
-  Attackers often spoof email addresses to look legitimate.
-
-  At first glance, the sender name may appear trustworthy.
-
-  WHAT TO CHECK
-  - Look at the full email address, not just the display name.
-  - Watch for extra characters or domains.
-  - Check if the domain matches the company website.
-
-  COMMON EXAMPLES
-  support@paypaI.com
-  security@amazon-support.co
-
-  These addresses look real but are not.
-
-  WHY IT FOOLS USERS
-  - Most people only read the display name.
-  - Small differences are easy to miss.
-
-  BEST PRACTICES
-  - Always inspect the full sender address.
-  - Be cautious with unexpected emails.
-  - Contact the company through official channels.
-
-  TAKEAWAY
-  A familiar name does not guarantee a legitimate sender.
-  `,
-    },
-    {
-      title: "Attachments and Downloads",
-      summary: "Why unexpected files are dangerous.",
-      order: 4,
-      content: `
-  Phishing emails often include malicious attachments.
-
-  These files may contain malware or ransomware.
-
-  COMMON ATTACHMENT TYPES
-  - ZIP files
-  - PDF invoices
-  - Word documents with macros
-
-  RED FLAGS
-  - Unexpected attachments.
-  - Messages urging you to open files quickly.
-  - Files requiring you to enable macros.
-
-  SAFE HANDLING
-  - Do not open unexpected attachments.
-  - Verify the sender before downloading.
-  - Use antivirus software.
-
-  WHY THIS IS DANGEROUS
-  - Malware can steal data.
-  - Ransomware can lock your system.
-  - Infections can spread inside organizations.
-
-  TAKEAWAY
-  If you did not expect a file, do not open it.
-  `,
-    },
-    {
-      title: "Too Good to Be True Offers",
-      summary: "Recognizing scam promotions and fake rewards.",
-      order: 5,
-      content: `
-  Phishing messages often promise rewards that seem too good to be true.
-
-  Examples include prizes, refunds, or free gifts.
-
-  COMMON SCAM THEMES
-  - You have won a prize.
-  - Unexpected refunds.
-  - Exclusive limited-time offers.
-
-  WHY IT WORKS
-  - Curiosity drives clicks.
-  - Greed overrides caution.
-  - Excitement reduces skepticism.
-
-  RED FLAGS
-  - Requests for personal data to claim rewards.
-  - Messages from unknown senders.
-  - Poor grammar or formatting.
-
-  HOW TO STAY SAFE
-  - Ignore unsolicited offers.
-  - Verify promotions on official websites.
-  - Remember: legitimate companies do not ask for sensitive data via email.
-
-  TAKEAWAY
-  If it sounds too good to be true, it probably is.
-  `,
-    },
-  ];
-
-  for (const l of lessons) {
-    await execute(
-      `INSERT INTO Lesson (id, title, summary, content, "order")
-       VALUES (?, ?, ?, ?, ?)`,
-      [uuid(), l.title, l.summary, l.content.trim(), l.order]
-    );
+  if (byTitle.rows.length > 0) {
+    return byTitle.rows[0] as { id: string };
   }
+
+  return null;
+}
+
+async function ensureSeedLesson(seedLesson: SeedLesson): Promise<{ id: string }> {
+  const content = buildLessonContentFromBlocks(seedLesson.blocks);
+  const existing = await findExistingSeedLesson(seedLesson);
+
+  if (existing) {
+    await execute(
+      `
+      UPDATE Lesson
+      SET title=?, summary=?, content=?, "order"=?
+      WHERE id=?
+      `,
+      [
+        seedLesson.title,
+        seedLesson.summary,
+        content,
+        seedLesson.order,
+        existing.id,
+      ]
+    );
+    return existing;
+  }
+
+  const id = uuid();
+  await execute(
+    `
+    INSERT INTO Lesson (id, title, summary, content, "order")
+    VALUES (?, ?, ?, ?, ?)
+    `,
+    [id, seedLesson.title, seedLesson.summary, content, seedLesson.order]
+  );
+  return { id };
+}
+
+export async function seedLessons() {
+  const currentVersion = await getSeedVersion("lessons");
+  if (currentVersion === LESSONS_SEED_VERSION) {
+    return;
+  }
+
+  for (const lesson of SEED_LESSONS) {
+    await ensureSeedLesson(lesson);
+  }
+
+  await setSeedVersion("lessons", LESSONS_SEED_VERSION);
+}
+
+export async function seedLessonBlocks() {
+  const currentVersion = await getSeedVersion("lesson-blocks");
+  if (currentVersion === LESSON_BLOCKS_SEED_VERSION) {
+    return;
+  }
+
+  for (const lesson of SEED_LESSONS) {
+    const lessonRow = await ensureSeedLesson(lesson);
+
+    await execute(`DELETE FROM TrainingBlockOption WHERE blockId IN (
+      SELECT id FROM TrainingBlock WHERE lessonId=?
+    )`, [lessonRow.id]);
+    await execute(`DELETE FROM TrainingBlockProgress WHERE lessonId=?`, [lessonRow.id]);
+    await execute(`DELETE FROM TrainingBlock WHERE lessonId=?`, [lessonRow.id]);
+    await execute(`DELETE FROM LessonProgress WHERE lessonId=?`, [lessonRow.id]);
+
+    let blockOrder = 1;
+    for (const block of lesson.blocks) {
+      const blockId = uuid();
+      await execute(
+        `
+        INSERT INTO TrainingBlock (id, lessonId, type, title, body, "order", isRequired, pendingSync)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          blockId,
+          lessonRow.id,
+          block.type,
+          block.title,
+          block.body,
+          blockOrder++,
+          block.isRequired === false ? 0 : 1,
+          0,
+        ]
+      );
+
+      if (block.type === "question_single") {
+        let optionOrder = 1;
+        for (const option of block.options ?? []) {
+          await execute(
+            `
+            INSERT INTO TrainingBlockOption (id, blockId, label, isCorrect, "order")
+            VALUES (?, ?, ?, ?, ?)
+            `,
+            [uuid(), blockId, option.label, option.isCorrect ? 1 : 0, optionOrder++]
+          );
+        }
+      }
+    }
+  }
+
+  await setSeedVersion("lesson-blocks", LESSON_BLOCKS_SEED_VERSION);
 }
 
 async function quizExists(slug: string): Promise<boolean> {

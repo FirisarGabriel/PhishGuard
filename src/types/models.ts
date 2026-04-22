@@ -5,6 +5,44 @@ export type Lesson = {
   content: string;
   order: number;
 };
+
+export type TrainingBlockType = "text" | "question_single";
+
+export type TrainingBlock = {
+  id: string;
+  lessonId: string;
+  type: TrainingBlockType;
+  title?: string | null;
+  body?: string | null;
+  order: number;
+  isRequired: 0 | 1;
+  pendingSync: 0 | 1;
+};
+
+export type TrainingBlockOption = {
+  id: string;
+  blockId: string;
+  label: string;
+  isCorrect: 0 | 1;
+  order: number;
+};
+
+export type TrainingBlockProgress = {
+  id: string;
+  userId: string;
+  lessonId: string;
+  blockId: string;
+  status: "not_started" | "completed";
+  selectedOptionId?: string | null;
+  isCorrect?: 0 | 1 | null;
+  completedAt?: number | null;
+  pendingSync: 0 | 1;
+};
+
+export type TrainingBlockWithOptions = TrainingBlock & {
+  options: TrainingBlockOption[];
+};
+
 export type LessonProgress = {
   id: string;
   userId: string;

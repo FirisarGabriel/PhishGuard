@@ -8,7 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 import { runMigrations } from "../src/db";
-import { seedLessons, seedQuizzes } from "../src/db/seed";
+import { seedLessonBlocks, seedLessons, seedQuizzes } from "../src/db/seed";
 import { AuthProvider } from "../src/auth/AuthProvider";
 import { AchievementToastProvider } from "../src/achievements/AchievementToastProvider";
 import { theme } from "../src/theme";
@@ -35,6 +35,7 @@ export default function RootLayout() {
       try {
         await runMigrations();
         await seedLessons();
+        await seedLessonBlocks();
         await seedQuizzes();
         if (alive) setDbReady(true);
       } catch (e: any) {

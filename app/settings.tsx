@@ -99,7 +99,7 @@ export default function Settings() {
 
     Alert.alert(
       "Reset lesson progress",
-      "This will clear all local lesson progress on this device.",
+      "This will clear all local training progress on this device, including block checkpoints.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -109,7 +109,7 @@ export default function Settings() {
             try {
               setResetting(true);
               await resetAllProgress(userId);
-              Alert.alert("Done", "All lesson progress cleared.");
+              Alert.alert("Done", "All training progress cleared.");
             } catch (e: any) {
               Alert.alert("Error", e?.message ?? "Failed to reset progress.");
             } finally {
