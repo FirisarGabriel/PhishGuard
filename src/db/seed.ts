@@ -133,7 +133,7 @@ const SEED_LESSONS: SeedLesson[] = [
         type: "text",
         title: "Display names can lie",
         body:
-          "Attackers know people read names faster than addresses. 'Microsoft Support' or 'CEO Office' means nothing if the real sender domain does not match the organization you expect.",
+          "Attackers aknow people read names faster than addresses. 'Microsoft Support' or 'CEO Office' means nothing if the real sender domain does not match the organization you expect.",
       },
       {
         type: "question_single",

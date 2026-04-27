@@ -1,6 +1,7 @@
-import { useLocalSearchParams, router } from "expo-router";
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from "react-native";
-import { useEffect, useState, useCallback } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { View, Text, Pressable, ActivityIndicator, ScrollView, InteractionManager } from "react-native";
+import { useEffect, useState, useCallback, useRef } from "react";
+import ConfettiCannon from "react-native-confetti-cannon";
 import { ErrorBanner } from "../../src/Feedback";
 import ProgressBar from "../../src/ProgressBar";
 import { theme } from "../../src/theme";
@@ -33,10 +34,70 @@ export default function LessonDetail() {
   const [blockProgress, setBlockProgress] = useState<Record<string, TrainingBlockProgress>>({});
   const [progress, setProgress] = useState(0);
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null);
+  const [hasScrolled, setHasScrolled] = useState(false);
+
+  const confettiRef = useRef<any>(null);
+  const prevProgressRef = useRef(0);
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const pendingCompletionRevealRef = useRef(false);
+  const router = useRouter();
 
   const { user } = useAuth();
   const { notifyAchievements } = useAchievementToast();
   const userId = user?.id ?? null;
+
+  const isBlockCompleted = useCallback(
+    (
+      block: TrainingBlockWithOptions,
+      progressMap: Record<string, TrainingBlockProgress>
+    ) => {
+      const current = progressMap[block.id];
+      return block.type === "question_single"
+        ? current?.isCorrect === 1
+        : current?.status === "completed";
+    },
+    []
+  );
+
+  const computeProgressFromMap = useCallback(
+    (progressMap: Record<string, TrainingBlockProgress>) => {
+      const requiredBlocks = blocks.filter((block) => block.isRequired === 1);
+      if (!requiredBlocks.length) return 0;
+
+      const completedRequired = requiredBlocks.filter((block) =>
+        isBlockCompleted(block, progressMap)
+      ).length;
+
+      return Math.round((completedRequired / requiredBlocks.length) * 100);
+    },
+    [blocks, isBlockCompleted]
+  );
+
+  const revealCompletionCta = useCallback(() => {
+    pendingCompletionRevealRef.current = true;
+    confettiRef.current?.start();
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    });
+  }, []);
+
+  const maybeRevealCompletionCta = useCallback(
+    (nextProgress: number) => {
+      if (prevProgressRef.current < 100 && nextProgress === 100) {
+        revealCompletionCta();
+      }
+      prevProgressRef.current = nextProgress;
+    },
+    [revealCompletionCta]
+  );
+
+  const waitForInteractions = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        InteractionManager.runAfterInteractions(() => resolve());
+      }),
+    []
+  );
 
   const load = useCallback(async () => {
     if (!userId) {
@@ -111,17 +172,39 @@ export default function LessonDetail() {
         return;
       }
 
+      const previousBlockProgress = blockProgress;
+      const nextBlockProgress = {
+        ...blockProgress,
+        [blockId]: {
+          ...blockProgress[blockId],
+          id: blockProgress[blockId]?.id ?? `optimistic-${blockId}`,
+          userId,
+          lessonId: lesson.id,
+          blockId,
+          status: "completed" as const,
+          pendingSync: 1 as const,
+          completedAt: Date.now(),
+        },
+      };
+      const nextProgress = computeProgressFromMap(nextBlockProgress);
+
       try {
         setSavingBlockId(blockId);
+        setBlockProgress(nextBlockProgress);
+        setProgress(nextProgress);
+        maybeRevealCompletionCta(nextProgress);
+        await waitForInteractions();
         await completeTextBlock(userId, lesson.id, blockId);
-        await refreshProgress();
+        void refreshProgress();
       } catch (e: any) {
+        setBlockProgress(previousBlockProgress);
+        setProgress(computeProgressFromMap(previousBlockProgress));
         setErr(e?.message ?? "Failed to save block progress.");
       } finally {
         setSavingBlockId(null);
       }
     },
-    [lesson, refreshProgress, userId]
+    [blockProgress, computeProgressFromMap, lesson, maybeRevealCompletionCta, refreshProgress, userId, waitForInteractions]
   );
 
   const onSelectOption = useCallback(
@@ -131,33 +214,72 @@ export default function LessonDetail() {
         return;
       }
 
+      const previousBlockProgress = blockProgress;
+      const nextIsCorrect = blocks.find((block) => block.id === blockId)?.options.some(
+        (option) => option.id === optionId && option.isCorrect === 1
+      );
+      const nextBlockProgress = {
+        ...blockProgress,
+        [blockId]: {
+          ...blockProgress[blockId],
+          id: blockProgress[blockId]?.id ?? `optimistic-${blockId}`,
+          userId,
+          lessonId: lesson.id,
+          blockId,
+          status: nextIsCorrect ? ("completed" as const) : ("not_started" as const),
+          selectedOptionId: optionId,
+          isCorrect: nextIsCorrect ? (1 as const) : (0 as const),
+          pendingSync: 1 as const,
+          completedAt: nextIsCorrect ? Date.now() : null,
+        },
+      };
+      const nextProgress = computeProgressFromMap(nextBlockProgress);
+      const wasCorrect = blockProgress[blockId]?.isCorrect === 1;
+
       try {
         setSavingBlockId(blockId);
+        setBlockProgress(nextBlockProgress);
+        setProgress(nextProgress);
+        maybeRevealCompletionCta(nextProgress);
+        await waitForInteractions();
         const { isCorrect } = await submitSingleChoiceAnswer(
           userId,
           lesson.id,
           blockId,
           optionId
         );
-        await refreshProgress();
+        void refreshProgress();
 
         if (isCorrect) {
           const unlocked = await evaluateTrainingAchievements(userId);
           notifyAchievements(unlocked);
         }
       } catch (e: any) {
+        setBlockProgress(previousBlockProgress);
+        setProgress(computeProgressFromMap(previousBlockProgress));
         setErr(e?.message ?? "Failed to submit answer.");
       } finally {
         setSavingBlockId(null);
       }
     },
-    [lesson, notifyAchievements, refreshProgress, userId]
+    [blockProgress, blocks, computeProgressFromMap, lesson, maybeRevealCompletionCta, notifyAchievements, refreshProgress, userId, waitForInteractions]
   );
 
-  const completedBlockCount = blocks.filter(
-    (block) => blockProgress[block.id]?.status === "completed"
-  ).length;
-  const remainingBlockCount = Math.max(blocks.length - completedBlockCount, 0);
+  useEffect(() => {
+    prevProgressRef.current = progress;
+  }, [progress]);
+
+  const onScrollContentSizeChange = useCallback(() => {
+    if (!pendingCompletionRevealRef.current) return;
+
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+    pendingCompletionRevealRef.current = false;
+  }, []);
+
+  const onContentScroll = useCallback((offsetY: number) => {
+    const next = offsetY > 6;
+    setHasScrolled((prev) => (prev === next ? prev : next));
+  }, []);
 
   if (loading) {
     return (
@@ -174,18 +296,6 @@ export default function LessonDetail() {
     return (
       <View style={{ flex: 1, padding: 20, gap: 12 }}>
         <ErrorBanner message={err ?? "Unknown error"} />
-        <Pressable
-          onPress={() => router.back()}
-          style={{
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius,
-            padding: 12,
-          }}
-        >
-          <Text>Back</Text>
-        </Pressable>
-
         {userId && (
           <Pressable
             onPress={load}
@@ -206,18 +316,16 @@ export default function LessonDetail() {
   const renderTextBlock = (block: TrainingBlockWithOptions) => {
     const done = blockProgress[block.id]?.status === "completed";
     const busy = savingBlockId === block.id;
-    const blockIndex = blocks.findIndex((entry) => entry.id === block.id) + 1;
 
     return (
       <View
-        key={block.id}
         style={{
           ...ui.cardElevated,
           padding: 16,
-          marginBottom: 14,
+          marginBottom: 0,
           gap: 12,
-          backgroundColor: done ? theme.colors.surface2 : theme.colors.surface1,
-          borderColor: done ? theme.colors.success : theme.colors.border,
+          backgroundColor: theme.colors.surface1,
+          borderColor: done ? theme.colors.success : theme.colors.borderStrong,
         }}
       >
         <View
@@ -228,45 +336,22 @@ export default function LessonDetail() {
             gap: 12,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
-            <View
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 999,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: done ? theme.colors.successBg : theme.colors.primaryMuted,
-                borderWidth: 1,
-                borderColor: done ? theme.colors.success : theme.colors.primary,
-              }}
-            >
-              <Text
-                style={{
-                  fontWeight: "700",
-                  color: done ? theme.colors.success : theme.colors.primary,
-                }}
-              >
-                {blockIndex}
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: theme.colors.muted, fontSize: 12, fontWeight: "600" }}>
+              LEARNING STEP
+            </Text>
+            {!!block.title && (
+              <Text style={{ fontSize: 18, fontWeight: "700", color: theme.colors.text }}>
+                {block.title}
               </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.colors.muted, fontSize: 12, fontWeight: "600" }}>
-                LEARNING STEP
-              </Text>
-              {!!block.title && (
-                <Text style={{ fontSize: 18, fontWeight: "700", color: theme.colors.text }}>
-                  {block.title}
-                </Text>
-              )}
-            </View>
+            )}
           </View>
 
           <View
             style={{
               ...ui.chip,
-              backgroundColor: done ? theme.colors.successBg : theme.colors.surface2,
-              borderColor: done ? theme.colors.success : theme.colors.border,
+              backgroundColor: done ? theme.colors.successBg : theme.colors.surface3,
+              borderColor: done ? theme.colors.success : theme.colors.borderStrong,
             }}
           >
             <Text
@@ -299,17 +384,18 @@ export default function LessonDetail() {
           style={({ pressed }) => ({
             opacity: pressed || busy || done ? 0.85 : 1,
             borderWidth: 1,
-            borderColor: done ? theme.colors.success : theme.colors.primary,
+            borderColor: done ? theme.colors.success : theme.colors.borderStrong,
             borderRadius: theme.radiusSm,
             padding: 12,
             alignItems: "center",
-            backgroundColor: done ? theme.colors.successBg : theme.colors.primaryMuted,
+            backgroundColor: done ? theme.colors.successBg : theme.colors.surface3,
+            ...theme.elevation.subtle,
           })}
         >
           <Text
             style={{
               fontWeight: "700",
-              color: done ? theme.colors.success : theme.colors.primary,
+              color: done ? theme.colors.success : theme.colors.text,
             }}
           >
             {done ? "Read ✓" : busy ? "Saving..." : "Mark as read"}
@@ -324,17 +410,16 @@ export default function LessonDetail() {
     const selectedOptionId = current?.selectedOptionId ?? null;
     const isCorrect = current?.isCorrect === 1;
     const busy = savingBlockId === block.id;
-    const blockIndex = blocks.findIndex((entry) => entry.id === block.id) + 1;
 
     return (
       <View
-        key={block.id}
         style={{
           ...ui.cardElevated,
           padding: 16,
-          marginBottom: 14,
+          marginBottom: 0,
           gap: 12,
-          borderColor: isCorrect ? theme.colors.success : theme.colors.border,
+          backgroundColor: theme.colors.surface1,
+          borderColor: isCorrect ? theme.colors.success : theme.colors.borderStrong,
         }}
       >
         <View
@@ -345,50 +430,27 @@ export default function LessonDetail() {
             gap: 12,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
-            <View
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 999,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: isCorrect ? theme.colors.successBg : "#fff4db",
-                borderWidth: 1,
-                borderColor: isCorrect ? theme.colors.success : theme.colors.warning,
-              }}
-            >
-              <Text
-                style={{
-                  fontWeight: "700",
-                  color: isCorrect ? theme.colors.success : theme.colors.warning,
-                }}
-              >
-                {blockIndex}
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: theme.colors.muted, fontSize: 12, fontWeight: "600" }}>
+              CHECKPOINT
+            </Text>
+            {!!block.title && (
+              <Text style={{ fontSize: 18, fontWeight: "700", color: theme.colors.text }}>
+                {block.title}
               </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.colors.muted, fontSize: 12, fontWeight: "600" }}>
-                CHECKPOINT
-              </Text>
-              {!!block.title && (
-                <Text style={{ fontSize: 18, fontWeight: "700", color: theme.colors.text }}>
-                  {block.title}
-                </Text>
-              )}
-            </View>
+            )}
           </View>
 
           <View
             style={{
               ...ui.chip,
-              backgroundColor: isCorrect ? theme.colors.successBg : "#fff4db",
-              borderColor: isCorrect ? theme.colors.success : theme.colors.warning,
+              backgroundColor: isCorrect ? theme.colors.successBg : theme.colors.surface3,
+              borderColor: isCorrect ? theme.colors.success : theme.colors.borderStrong,
             }}
           >
             <Text
               style={{
-                color: isCorrect ? theme.colors.success : "#9a6700",
+                color: isCorrect ? theme.colors.success : theme.colors.muted,
                 fontWeight: "700",
               }}
             >
@@ -427,10 +489,11 @@ export default function LessonDetail() {
                     ? theme.colors.successBg
                     : isSelected
                       ? theme.colors.cardPressed
-                      : theme.colors.card,
+                      : theme.colors.surface3,
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 12,
+                ...theme.elevation.subtle,
               })}
             >
               <View
@@ -443,7 +506,7 @@ export default function LessonDetail() {
                     isSelected && isCorrect
                       ? theme.colors.success
                       : isSelected
-                        ? theme.colors.primary
+                        ? theme.colors.borderStrong
                         : theme.colors.borderStrong,
                   alignItems: "center",
                   justifyContent: "center",
@@ -451,7 +514,7 @@ export default function LessonDetail() {
                     isSelected && isCorrect
                       ? theme.colors.success
                       : isSelected
-                        ? theme.colors.primaryMuted
+                        ? theme.colors.surface3
                         : theme.colors.surface1,
                 }}
               >
@@ -463,7 +526,7 @@ export default function LessonDetail() {
                       isSelected && isCorrect
                         ? theme.colors.textInverse
                         : isSelected
-                          ? theme.colors.primary
+                          ? theme.colors.text
                           : theme.colors.muted,
                   }}
                 >
@@ -516,85 +579,107 @@ export default function LessonDetail() {
         style={{
           paddingHorizontal: 16,
           paddingTop: 16,
-          paddingBottom: 18,
-          borderBottomWidth: 1,
-          borderBottomColor: theme.colors.border,
-          backgroundColor: theme.colors.surface1,
+          paddingBottom: 2,
+          backgroundColor: theme.colors.bg,
+          ...(hasScrolled ? theme.elevation.subtle : {}),
         }}
       >
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => ({
-            alignSelf: "flex-start",
-            ...ui.chip,
-            opacity: pressed ? 0.8 : 1,
-            marginBottom: 14,
-          })}
-        >
-          <Text style={{ color: theme.colors.text, fontWeight: "600" }}>Back</Text>
-        </Pressable>
-
-        <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: "700" }}>
-          PHISHING AWARENESS TRAINING
-        </Text>
-        <Text style={{ fontSize: 24, fontWeight: "700", color: theme.colors.text, marginTop: 4 }}>
-          {lesson.title}
-        </Text>
-        <Text style={{ color: theme.colors.muted, lineHeight: 21, marginTop: 8 }}>
-          {lesson.summary}
-        </Text>
-
-        <View style={{ marginTop: 14 }}>
-          <ProgressBar value={progress} />
-        </View>
-
-        <View style={{ flexDirection: "row", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
           <View
             style={{
-              ...ui.chip,
-              backgroundColor: theme.colors.primaryMuted,
-              borderColor: theme.colors.primary,
+              flex: 1,
+              borderWidth: 1,
+              borderColor: theme.colors.borderStrong,
+              borderRadius: 999,
+              padding: 2,
+              backgroundColor: theme.colors.surface1,
+              shadowColor: theme.colors.shadow,
+              shadowOpacity: 0.14,
+              shadowRadius: 10,
+              shadowOffset: { width: 0, height: 4 },
+              elevation: 5,
             }}
           >
-            <Text style={{ color: theme.colors.primary, fontWeight: "700" }}>
-              {progress}% complete
-            </Text>
-          </View>
-          <View style={ui.chip}>
-            <Text style={{ color: theme.colors.text, fontWeight: "600" }}>
-              {completedBlockCount}/{blocks.length} steps done
-            </Text>
-          </View>
-          <View style={ui.chip}>
-            <Text style={{ color: theme.colors.text, fontWeight: "600" }}>
-              {remainingBlockCount} remaining
-            </Text>
+            <ProgressBar value={progress} />
           </View>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
+      <ScrollView
+        ref={scrollViewRef}
+        onContentSizeChange={onScrollContentSizeChange}
+        onScroll={(e) => onContentScroll(e.nativeEvent.contentOffset.y)}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 }}
+      >
         <View
           style={{
-            ...ui.screenSection,
             marginBottom: 16,
-            backgroundColor: theme.colors.surface2,
-            gap: 8,
+            gap: 6,
           }}
         >
-          <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: "700" }}>
-            How this lesson works
+          <Text style={{ fontSize: 21, fontWeight: "700", color: theme.colors.text }}>
+            {lesson.title}
           </Text>
           <Text style={{ color: theme.colors.muted, lineHeight: 21 }}>
-            Read each step, complete every checkpoint, and finish all required blocks to mark this training as done.
+            {lesson.summary}
           </Text>
         </View>
 
-        {blocks.map((block) => {
-          if (block.type === "question_single") {
-            return renderSingleChoiceBlock(block);
-          }
-          return renderTextBlock(block);
+        {blocks.map((block, index) => {
+          const isLast = index === blocks.length - 1;
+          const isDone =
+            block.type === "question_single"
+              ? blockProgress[block.id]?.isCorrect === 1
+              : blockProgress[block.id]?.status === "completed";
+
+          return (
+            <View key={block.id} style={{ flexDirection: "row", marginBottom: 14 }}>
+              {/* Coloana timeline */}
+              <View style={{ width: 44, alignItems: "center", paddingTop: 18 }}>
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 999,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: isDone ? theme.colors.successBg : theme.colors.surface2,
+                    borderWidth: 1,
+                    borderColor: isDone ? theme.colors.success : theme.colors.borderStrong,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontWeight: "700",
+                      fontSize: 13,
+                      color: isDone ? theme.colors.success : theme.colors.muted,
+                    }}
+                  >
+                    {isDone ? "✓" : String(index + 1)}
+                  </Text>
+                </View>
+                {!isLast && (
+                  <View
+                    style={{
+                      width: 2,
+                      flex: 1,
+                      marginTop: 6,
+                      marginBottom: -14,
+                      backgroundColor: isDone ? theme.colors.success : theme.colors.border,
+                      opacity: 0.6,
+                    }}
+                  />
+                )}
+              </View>
+
+              <View style={{ flex: 1 }}>
+                {block.type === "question_single"
+                  ? renderSingleChoiceBlock(block)
+                  : renderTextBlock(block)}
+              </View>
+            </View>
+          );
         })}
 
         {progress === 100 && (
@@ -604,20 +689,50 @@ export default function LessonDetail() {
               borderWidth: 1,
               borderColor: theme.colors.success,
               borderRadius: theme.radiusLg,
-              padding: 16,
+              padding: 20,
               backgroundColor: theme.colors.successBg,
+              gap: 10,
+              alignItems: "center",
               ...theme.elevation.subtle,
             }}
           >
-            <Text style={{ color: theme.colors.success, fontWeight: "700", fontSize: 17 }}>
-              Lesson completed.
+            <Text style={{ fontSize: 36 }}>🎉</Text>
+            <Text style={{ color: theme.colors.success, fontWeight: "700", fontSize: 18, textAlign: "center" }}>
+              Lesson completed!
             </Text>
-            <Text style={{ color: theme.colors.success, marginTop: 6, lineHeight: 20 }}>
+            <Text style={{ color: theme.colors.success, lineHeight: 20, textAlign: "center" }}>
               You finished all required steps in this training. The next pass can focus on speed and confidence.
             </Text>
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => ({
+                marginTop: 4,
+                paddingVertical: 12,
+                paddingHorizontal: 28,
+                borderRadius: theme.radiusSm,
+                backgroundColor: theme.colors.success,
+                opacity: pressed ? 0.85 : 1,
+                ...theme.elevation.subtle,
+              })}
+            >
+              <Text style={{ color: theme.colors.textInverse, fontWeight: "700", fontSize: 15 }}>
+                Back to lessons
+              </Text>
+            </Pressable>
           </View>
         )}
       </ScrollView>
+
+      {/* Confetti cannon - declanșat programatic prin ref */}
+      <ConfettiCannon
+        ref={confettiRef}
+        count={180}
+        origin={{ x: 200, y: -20 }}
+        autoStart={false}
+        fadeOut
+        explosionSpeed={350}
+        fallSpeed={3000}
+      />
     </View>
   );
 }
