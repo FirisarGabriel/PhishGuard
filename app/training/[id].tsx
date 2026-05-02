@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { View, Text, Pressable, ActivityIndicator, ScrollView, InteractionManager } from "react-native";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { ErrorBanner } from "../../src/Feedback";
 import ProgressBar from "../../src/ProgressBar";
@@ -10,6 +10,11 @@ import { useAuth } from "../../src/auth/AuthProvider";
 import { useAchievementToast } from "../../src/achievements/AchievementToastProvider";
 import { evaluateTrainingAchievements } from "../../src/repos/achievements";
 import {
+  getAssignmentRecipientById,
+  type AssignmentRecipientDetails,
+  updateAssignmentRecipientLocalProgress,
+} from "../../src/repos/b2b";
+import {
   completeTextBlock,
   getBlockProgressMap,
   getLessonBlocks,
@@ -17,6 +22,7 @@ import {
   getProgressMap,
   submitSingleChoiceAnswer,
 } from "../../src/repos/lessons";
+import { runHybridSync, syncAssignmentRecipientProgress } from "../../src/sync/hybrid";
 import type {
   Lesson,
   TrainingBlockProgress,
@@ -24,7 +30,10 @@ import type {
 } from "../../src/types/models";
 
 export default function LessonDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, assignmentRecipientId } = useLocalSearchParams<{
+    id: string;
+    assignmentRecipientId?: string;
+  }>();
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -35,6 +44,7 @@ export default function LessonDetail() {
   const [progress, setProgress] = useState(0);
   const [savingBlockId, setSavingBlockId] = useState<string | null>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
+  const [assignmentContext, setAssignmentContext] = useState<AssignmentRecipientDetails | null>(null);
 
   const confettiRef = useRef<any>(null);
   const prevProgressRef = useRef(0);
@@ -99,6 +109,59 @@ export default function LessonDetail() {
     []
   );
 
+  const progressContext = useMemo(
+    () =>
+      typeof assignmentRecipientId === "string"
+        ? {
+            source: "assignment" as const,
+            assignmentRecipientId,
+          }
+        : {
+            source: "b2c" as const,
+          },
+    [assignmentRecipientId]
+  );
+
+  const syncAssignmentContext = useCallback(
+    async (nextProgress: number) => {
+      const currentAssignmentRecipientId =
+        typeof assignmentRecipientId === "string" ? assignmentRecipientId : null;
+
+      if (!currentAssignmentRecipientId) {
+        return;
+      }
+
+      const now = Date.now();
+      const status = nextProgress >= 100 ? "completed" : "in_progress";
+
+      await updateAssignmentRecipientLocalProgress({
+        assignmentRecipientId: currentAssignmentRecipientId,
+        status,
+        progressAt: now,
+      });
+
+      const nextLocal = await getAssignmentRecipientById(currentAssignmentRecipientId);
+      setAssignmentContext(nextLocal);
+
+      try {
+        await syncAssignmentRecipientProgress({
+          assignmentRecipientId: currentAssignmentRecipientId,
+          status,
+          progressAt: now,
+        });
+
+        if (status === "completed" && userId) {
+          await runHybridSync(userId, { trigger: "assignment_completion_refresh" });
+          const refreshedAssignment = await getAssignmentRecipientById(currentAssignmentRecipientId);
+          setAssignmentContext(refreshedAssignment);
+        }
+      } catch {
+        // keep local cache marked dirty; hybrid sync will retry later
+      }
+    },
+    [assignmentRecipientId, userId]
+  );
+
   const load = useCallback(async () => {
     if (!userId) {
       setErr("Not signed in.");
@@ -113,11 +176,16 @@ export default function LessonDetail() {
       setLoading(true);
 
       const lessonId = String(id);
-      const [l, b, bpm, pm] = await Promise.all([
+      const currentAssignmentRecipientId =
+        typeof assignmentRecipientId === "string" ? assignmentRecipientId : null;
+      const [l, b, bpm, pm, assignment] = await Promise.all([
         getLessonById(lessonId),
         getLessonBlocks(lessonId),
-        getBlockProgressMap(userId, lessonId),
-        getProgressMap(userId),
+        getBlockProgressMap(userId, lessonId, progressContext),
+        getProgressMap(userId, progressContext),
+        currentAssignmentRecipientId
+          ? getAssignmentRecipientById(currentAssignmentRecipientId)
+          : Promise.resolve(null),
       ]);
 
       if (!l) {
@@ -129,6 +197,7 @@ export default function LessonDetail() {
       setLesson(l);
       setBlocks(b);
       setBlockProgress(bpm);
+  setAssignmentContext(assignment);
 
       const p = pm[l.id]?.completion ?? 0;
       setProgress(typeof p === "number" ? p : 0);
@@ -137,7 +206,7 @@ export default function LessonDetail() {
     } finally {
       setLoading(false);
     }
-  }, [id, userId]);
+  }, [assignmentRecipientId, id, progressContext, userId]);
 
   useEffect(() => {
     let alive = true;
@@ -156,14 +225,14 @@ export default function LessonDetail() {
     if (!userId || !lesson) return;
 
     const [bpm, pm] = await Promise.all([
-      getBlockProgressMap(userId, lesson.id),
-      getProgressMap(userId),
+      getBlockProgressMap(userId, lesson.id, progressContext),
+      getProgressMap(userId, progressContext),
     ]);
 
     setBlockProgress(bpm);
     const p = pm[lesson.id]?.completion ?? 0;
     setProgress(typeof p === "number" ? p : 0);
-  }, [lesson, userId]);
+  }, [lesson, progressContext, userId]);
 
   const onMarkTextRead = useCallback(
     async (blockId: string) => {
@@ -194,7 +263,8 @@ export default function LessonDetail() {
         setProgress(nextProgress);
         maybeRevealCompletionCta(nextProgress);
         await waitForInteractions();
-        await completeTextBlock(userId, lesson.id, blockId);
+        await completeTextBlock(userId, lesson.id, blockId, progressContext);
+        await syncAssignmentContext(nextProgress);
         void refreshProgress();
       } catch (e: any) {
         setBlockProgress(previousBlockProgress);
@@ -204,7 +274,17 @@ export default function LessonDetail() {
         setSavingBlockId(null);
       }
     },
-    [blockProgress, computeProgressFromMap, lesson, maybeRevealCompletionCta, refreshProgress, userId, waitForInteractions]
+    [
+      blockProgress,
+      computeProgressFromMap,
+      lesson,
+      maybeRevealCompletionCta,
+      progressContext,
+      refreshProgress,
+      syncAssignmentContext,
+      userId,
+      waitForInteractions,
+    ]
   );
 
   const onSelectOption = useCallback(
@@ -246,8 +326,10 @@ export default function LessonDetail() {
           userId,
           lesson.id,
           blockId,
-          optionId
+          optionId,
+          progressContext
         );
+        await syncAssignmentContext(nextProgress);
         void refreshProgress();
 
         if (isCorrect) {
@@ -262,7 +344,19 @@ export default function LessonDetail() {
         setSavingBlockId(null);
       }
     },
-    [blockProgress, blocks, computeProgressFromMap, lesson, maybeRevealCompletionCta, notifyAchievements, refreshProgress, userId, waitForInteractions]
+    [
+      blockProgress,
+      blocks,
+      computeProgressFromMap,
+      lesson,
+      maybeRevealCompletionCta,
+      notifyAchievements,
+      progressContext,
+      refreshProgress,
+      syncAssignmentContext,
+      userId,
+      waitForInteractions,
+    ]
   );
 
   useEffect(() => {
@@ -625,6 +719,80 @@ export default function LessonDetail() {
             {lesson.summary}
           </Text>
         </View>
+
+        {assignmentContext && (
+          <View
+            style={{
+              ...ui.card,
+              marginBottom: 16,
+              padding: 14,
+              borderColor:
+                assignmentContext.status === "completed"
+                  ? theme.colors.success
+                  : assignmentContext.status === "overdue"
+                    ? theme.colors.errorBorder
+                    : theme.colors.primary,
+              backgroundColor:
+                assignmentContext.status === "completed"
+                  ? theme.colors.successBg
+                  : assignmentContext.status === "overdue"
+                    ? theme.colors.errorBg
+                    : theme.colors.primaryMuted,
+              gap: 8,
+            }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: "700", color: theme.colors.muted }}>
+              ASSIGNED TRAINING
+            </Text>
+            <Text style={{ fontSize: 16, fontWeight: "700", color: theme.colors.text }}>
+              {assignmentContext.assignmentTitle?.trim() || lesson.title}
+            </Text>
+            {!!assignmentContext.assignmentNote && (
+              <Text style={{ color: theme.colors.text }}>{assignmentContext.assignmentNote}</Text>
+            )}
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {!!assignmentContext.organizationName && (
+                <View style={ui.chip}>
+                  <Text style={{ fontWeight: "600", color: theme.colors.text }}>
+                    {assignmentContext.organizationName}
+                  </Text>
+                </View>
+              )}
+              <View
+                style={{
+                  ...ui.chip,
+                  borderColor:
+                    assignmentContext.status === "completed"
+                      ? theme.colors.success
+                      : assignmentContext.status === "overdue"
+                        ? theme.colors.errorBorder
+                        : theme.colors.primary,
+                  backgroundColor: theme.colors.surface1,
+                }}
+              >
+                <Text
+                  style={{
+                    fontWeight: "700",
+                    color:
+                      assignmentContext.status === "completed"
+                        ? theme.colors.success
+                        : assignmentContext.status === "overdue"
+                          ? theme.colors.error
+                          : theme.colors.primary,
+                  }}
+                >
+                  {assignmentContext.status === "completed"
+                    ? "Completed"
+                    : assignmentContext.status === "overdue"
+                      ? "Overdue"
+                      : assignmentContext.status === "in_progress"
+                        ? "In progress"
+                        : "Assigned"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {blocks.map((block, index) => {
           const isLast = index === blocks.length - 1;

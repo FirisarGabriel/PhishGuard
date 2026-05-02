@@ -5,16 +5,26 @@ import {
   createContext,
   useContext,
   ReactNode,
+  useCallback,
 } from "react";
-import { View, ActivityIndicator, Text, Platform } from "react-native";
+import { View, ActivityIndicator, Text, Platform, AppState } from "react-native";
 import { useRouter, usePathname } from "expo-router";
 import * as LocalAuthentication from "expo-local-authentication";
+import * as Network from "expo-network";
 
 import { onAuthStateChanged, getSession, signOut } from "./service";
 import type { Session, User } from "@supabase/supabase-js";
 import { getBiometricEnabled, getHasSeenBiometricPrompt } from "../secure";
 
-import { ensureProfile, setRole } from "../repos/profile";
+import {
+  hydrateCachedAuthState,
+  hydrateRemoteAuthState,
+  setRole,
+  type Role,
+  type UserProfile,
+} from "../repos/profile";
+import type { OrganizationWithMembership } from "../repos/b2b";
+import { runHybridSync } from "../sync/hybrid";
 
 // IMPORTĂ funcțiile pentru adminMode
 import { getAdminModeEnabled, setAdminModeEnabled } from "../secure";
@@ -23,6 +33,10 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  profile: UserProfile | null;
+  organizations: OrganizationWithMembership[];
+  platformRole: Role | null;
+  refreshAuthState: () => Promise<void>;
 
   biometricLocked: boolean;
   unlockBiometric: () => void;
@@ -36,6 +50,10 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
+  profile: null,
+  organizations: [],
+  platformRole: null,
+  refreshAuthState: async () => {},
   biometricLocked: false,
   unlockBiometric: () => {},
   adminMode: false,
@@ -53,6 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [organizations, setOrganizations] = useState<OrganizationWithMembership[]>([]);
+  const [authzReady, setAuthzReady] = useState(false);
 
   // Bootstrap flag (vezi discuție anterioară)
   const [bootstrapped, setBootstrapped] = useState(false);
@@ -66,6 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const startupUserIdRef = useRef<string | null>(null);
   const didGateBiometric = useRef(false);
   const ensuredProfileForUserRef = useRef<string | null>(null);
+  const syncedUserIdRef = useRef<string | null>(null);
+  const syncInFlightRef = useRef(false);
+  const lastSyncAtRef = useRef(0);
+  const lastKnownOfflineRef = useRef<boolean | null>(null);
 
   const isAuthRoute =
     pathname === "/login" ||
@@ -104,8 +129,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           startupUserIdRef.current = null;
           didGateBiometric.current = false;
           ensuredProfileForUserRef.current = null;
+          syncedUserIdRef.current = null;
           setBiometricLocked(false);
           setAdminModeState(false); // curățăm adminMode la logout
+          setProfile(null);
+          setOrganizations([]);
+          setAuthzReady(true);
         }
       });
 
@@ -123,31 +152,191 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const ready = !loading && bootstrapped;
+  const ready = !loading && bootstrapped && authzReady;
 
-  // ensure profile + auto admin
+  const refreshAuthState = useCallback(async () => {
+    if (!user) {
+      setProfile(null);
+      setOrganizations([]);
+      setAuthzReady(true);
+      return;
+    }
+
+    setAuthzReady(false);
+
+    try {
+      const email = (user.email ?? "").trim().toLowerCase();
+      const ADMIN_EMAIL = "gabrielfirisar@gmail.com";
+
+      if (email === ADMIN_EMAIL) {
+        await setRole(user.id, "ADMIN");
+      }
+
+      const nextState = await hydrateRemoteAuthState(user);
+      setProfile(nextState.profile);
+      setOrganizations(nextState.organizations);
+      setAuthzReady(true);
+    } catch {
+      try {
+        const cachedState = await hydrateCachedAuthState(user);
+        setProfile(cachedState.profile);
+        setOrganizations(cachedState.organizations);
+        setAuthzReady(true);
+      } catch {
+        setProfile({
+          userId: user.id,
+          email: user.email ?? null,
+          role: "USER",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        setOrganizations([]);
+        setAuthzReady(true);
+      }
+    }
+  }, [user]);
+
+  const runSyncIfNeeded = useCallback(
+    async (reason: "bootstrap" | "foreground" | "reconnect") => {
+      if (!user?.id || !ready) {
+        return;
+      }
+
+      if (syncInFlightRef.current) {
+        return;
+      }
+
+      const now = Date.now();
+      const minIntervalMs = reason === "bootstrap" ? 0 : 15_000;
+      if (now - lastSyncAtRef.current < minIntervalMs) {
+        return;
+      }
+
+      syncInFlightRef.current = true;
+      try {
+        await runHybridSync(user.id, { trigger: `auth_${reason}` });
+        syncedUserIdRef.current = user.id;
+        lastSyncAtRef.current = now;
+      } catch {
+        // ignore sync failures; cache and pending flags keep state recoverable
+      } finally {
+        syncInFlightRef.current = false;
+      }
+    },
+    [ready, user?.id]
+  );
+
+  // hydrate profile + memberships remote-first with local fallback
   useEffect(() => {
+    let alive = true;
+
     (async () => {
-      if (!ready) return;
-      if (!user) return;
+      if (loading || !bootstrapped) return;
+
+      if (!user) {
+        if (alive) {
+          setProfile(null);
+          setOrganizations([]);
+          setAuthzReady(true);
+        }
+        return;
+      }
+
       if (ensuredProfileForUserRef.current === user.id) return;
 
+      if (alive) {
+        setAuthzReady(false);
+      }
+
       try {
-        await ensureProfile(user.id, user.email ?? null);
-
-        const email = (user.email ?? "").trim().toLowerCase();
-        const ADMIN_EMAIL = "gabrielfirisar@gmail.com";
-
-        if (email === ADMIN_EMAIL) {
-          await setRole(user.id, "ADMIN");
-        }
-
-        ensuredProfileForUserRef.current = user.id;
+        await refreshAuthState();
       } catch {
-        // ignore
+        try {
+          const cachedState = await hydrateCachedAuthState(user);
+          if (alive) {
+            setProfile(cachedState.profile);
+            setOrganizations(cachedState.organizations);
+            setAuthzReady(true);
+          }
+        } catch {
+          if (alive) {
+            setProfile({
+              userId: user.id,
+              email: user.email ?? null,
+              role: "USER",
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            });
+            setOrganizations([]);
+            setAuthzReady(true);
+          }
+        }
+      } finally {
+        ensuredProfileForUserRef.current = user.id;
       }
     })();
-  }, [ready, user]);
+
+    return () => {
+      alive = false;
+    };
+  }, [bootstrapped, loading, refreshAuthState, user]);
+
+  useEffect(() => {
+    if (!ready || !user?.id) {
+      return;
+    }
+
+    if (syncedUserIdRef.current === user.id) {
+      return;
+    }
+
+    void runSyncIfNeeded("bootstrap");
+  }, [ready, runSyncIfNeeded, user?.id]);
+
+  useEffect(() => {
+    if (!ready || !user?.id) {
+      lastKnownOfflineRef.current = null;
+      return;
+    }
+
+    let alive = true;
+
+    const computeOffline = (state: Network.NetworkState) => {
+      if (!state.isConnected) return true;
+      if (state.isInternetReachable === false) return true;
+      return false;
+    };
+
+    const applyNetworkState = (state: Network.NetworkState) => {
+      const offline = computeOffline(state);
+      const wasOffline = lastKnownOfflineRef.current;
+      lastKnownOfflineRef.current = offline;
+
+      if (alive && wasOffline === true && offline === false) {
+        void runSyncIfNeeded("reconnect");
+      }
+    };
+
+    Network.getNetworkStateAsync().then((state) => {
+      if (!alive) return;
+      applyNetworkState(state);
+    });
+
+    const networkSub = Network.addNetworkStateListener(applyNetworkState);
+    const appStateSub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        void runSyncIfNeeded("foreground");
+      }
+    });
+
+    return () => {
+      alive = false;
+      if (networkSub && typeof (networkSub as any).remove === "function") {
+        (networkSub as any).remove();
+      }
+      appStateSub.remove();
+    };
+  }, [ready, runSyncIfNeeded, user?.id]);
 
   // load adminMode from SecureStore when user changes (so it's reactive)
   useEffect(() => {
@@ -287,6 +476,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         loading: !ready,
+        profile,
+        organizations,
+        platformRole: profile?.role ?? null,
+        refreshAuthState,
         biometricLocked,
         unlockBiometric,
         adminMode,

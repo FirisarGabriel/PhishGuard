@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { View, Text, Switch, Alert, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, Switch, Alert, Pressable, ActivityIndicator, ScrollView } from "react-native";
 import { router } from "expo-router";
 
 import { getBiometricEnabled, setBiometricEnabled } from "../src/secure";
@@ -12,6 +12,14 @@ import { useRole } from "../src/auth/useRole";
 import { theme } from "../src/theme";
 import { ui } from "../src/ui";
 
+function StatusChip({ label }: { label: string }) {
+  return (
+    <View style={ui.chip}>
+      <Text style={{ color: theme.colors.text, fontWeight: "700" }}>{label}</Text>
+    </View>
+  );
+}
+
 export default function Settings() {
   const [enabled, setEnabled] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
@@ -20,6 +28,13 @@ export default function Settings() {
 
   const { user, adminMode, setAdminMode } = useAuth();
   const userId = user?.id ?? null;
+  const displayName =
+    typeof user?.user_metadata?.name === "string" && user.user_metadata.name.trim()
+      ? user.user_metadata.name.trim()
+      : typeof user?.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()
+        ? user.user_metadata.full_name.trim()
+        : "Unknown user";
+  const displayEmail = user?.email?.trim() || "No email";
 
   const { role, loading: roleLoading } = useRole();
   const isAdmin = role === "ADMIN";
@@ -178,39 +193,102 @@ export default function Settings() {
   }
 
   return (
-    <View style={ui.screenPadded}>
-      <Text style={{ ...theme.typography.titleMd, marginBottom: 12 }}>
-        Settings
-      </Text>
+    <ScrollView style={ui.screen} contentContainerStyle={{ padding: 24, gap: 16 }}>
+      <View style={{ ...ui.screenSection, gap: 12 }}>
+        <View style={{ gap: 2 }}>
+          <Text style={theme.typography.titleMd}>
+            Settings
+          </Text>
+          <Text style={{ color: theme.colors.muted }}>
+            Device preferences, admin tools, and local test helpers.
+          </Text>
+        </View>
 
-      {/* Biometrics */}
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12 }}>
-        <Text style={{ fontSize: 16 }}>Use biometric login</Text>
-        <Switch value={enabled} onValueChange={onToggleBiometrics} />
+        <View>
+          <Text style={{ fontSize: 18, fontWeight: "700", color: theme.colors.text }}>
+            {displayName}
+          </Text>
+          <Text style={{ color: theme.colors.muted }}>
+            {displayEmail}
+          </Text>
+        </View>
+
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          <StatusChip label={isAdmin ? "Platform admin" : "Standard user"} />
+          {isAdmin ? <StatusChip label={adminMode ? "Admin Mode on" : "Admin Mode off"} /> : null}
+          {enabled ? <StatusChip label="Biometrics on" /> : <StatusChip label="Biometrics off" />}
+        </View>
       </View>
-      <Text style={{ color: theme.colors.muted }}>
-        You can also enable this after your first login.
-      </Text>
 
-      {/* Admin Mode (doar admin) */}
+      <View style={{ ...ui.screenSection, gap: 12 }}>
+        <Text style={{ fontSize: 16, fontWeight: "600", color: theme.colors.text }}>
+          Biometrics
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 }}>
+          <View style={{ flex: 1, paddingRight: 16 }}>
+            <Text style={{ fontSize: 16, color: theme.colors.text }}>Use biometric login</Text>
+            <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
+              You can also enable this after your first login.
+            </Text>
+          </View>
+          <Switch value={enabled} onValueChange={onToggleBiometrics} />
+        </View>
+      </View>
+
       {isAdmin && (
-        <>
-          <View style={ui.divider} />
+        <View style={{ ...ui.screenSection, gap: 12 }}>
+          <Text style={{ fontSize: 16, fontWeight: "600", color: theme.colors.text }}>
+            Admin tools
+          </Text>
 
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12 }}>
-            <Text style={{ fontSize: 16 }}>Admin Mode</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 4 }}>
+            <View style={{ flex: 1, paddingRight: 16 }}>
+              <Text style={{ fontSize: 16, color: theme.colors.text }}>Admin Mode</Text>
+              <Text style={{ color: theme.colors.muted, marginTop: 4 }}>
+                Enables lesson editing controls and admin-only operational screens.
+              </Text>
+            </View>
             <Switch value={adminMode} onValueChange={onToggleAdminMode} />
           </View>
-          <Text style={{ color: theme.colors.muted }}>
-            When enabled, you will see editing controls for lessons and quizzes.
-          </Text>
-        </>
+
+          {adminMode ? (
+            <>
+              <Pressable
+                onPress={() => router.push("/admin-audit")}
+                style={({ pressed }) => ({
+                  opacity: pressed ? 0.8 : 1,
+                  ...ui.button,
+                })}
+                accessibilityLabel="Open admin audit log"
+              >
+                <Text style={{ fontWeight: "700", color: theme.colors.text }}>
+                  Open admin audit log
+                </Text>
+              </Pressable>
+              <View style={ui.mutedPanel}>
+                <Text style={{ color: theme.colors.text, fontWeight: "700", marginBottom: 4 }}>
+                  Audit retention
+                </Text>
+                <Text style={{ color: theme.colors.muted }}>
+                  Audit entries older than 7 days are cleaned up automatically on the backend.
+                </Text>
+              </View>
+            </>
+          ) : (
+            <View style={ui.mutedPanel}>
+              <Text style={{ color: theme.colors.text, fontWeight: "700", marginBottom: 4 }}>
+                Admin tools are hidden
+              </Text>
+              <Text style={{ color: theme.colors.muted }}>
+                Turn on Admin Mode when you need audit visibility or editing controls.
+              </Text>
+            </View>
+          )}
+        </View>
       )}
 
-      <View style={ui.divider} />
-
-      <View>
-        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
+      <View style={{ ...ui.screenSection, gap: 12 }}>
+        <Text style={{ fontSize: 16, fontWeight: "600", color: theme.colors.text }}>
           Data
         </Text>
         <Pressable
@@ -248,9 +326,7 @@ export default function Settings() {
         )}
       </View>
 
-      <View style={ui.divider} />
-
-      <View style={{ marginBottom: 24 }}>
+      <View style={{ ...ui.screenSection, gap: 12, marginBottom: 24 }}>
         <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}>
           Account
         </Text>
@@ -273,6 +349,6 @@ export default function Settings() {
         </Text>
       </View>
 
-    </View>
+    </ScrollView>
   );
 }

@@ -9,6 +9,7 @@ import { useRole } from "../src/auth/useRole";
 import { useAuth } from "../src/auth/AuthProvider";
 import { getAchievementsSeenAt } from "../src/secure";
 import { getUnreadAchievementCount } from "../src/repos/achievements";
+import { listMyPendingOrganizationInvites } from "../src/repos/b2b";
 import { theme } from "../src/theme";
 
 function CircleButton({
@@ -77,14 +78,36 @@ function CircleButton({
   );
 }
 
+function formatCompanyRole(role?: string | null) {
+  switch (role) {
+    case "org_owner":
+      return "owner";
+    case "org_manager":
+      return "manager";
+    case "employee":
+      return "employee";
+    default:
+      return "none";
+  }
+}
+
 export default function Home() {
   const [offline, setOffline] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingInviteCount, setPendingInviteCount] = useState(0);
 
   const { role, loading: roleLoading } = useRole();
-  const { user, adminMode } = useAuth(); // preluăm din context
+  const { user, adminMode, organizations } = useAuth(); // preluăm din context
   const isAdmin = role === "ADMIN";
   const userId = user?.id ?? null;
+  const hasActiveOrganization = organizations.some(
+    (organization) => organization.membershipStatus === "active"
+  );
+  const activeOrganizationMembership =
+    organizations.find((organization) => organization.membershipStatus === "active") ?? null;
+  const showOrganizationButton = !!userId && (hasActiveOrganization || isAdmin);
+  const organizationButtonLabel = isAdmin && adminMode ? "Create Org" : "Organization";
+  const organizationButtonHref = isAdmin && adminMode ? "/organization-create" : "/organization";
 
   useEffect(() => {
     let mounted = true;
@@ -128,10 +151,20 @@ export default function Home() {
 
         try {
           const seenAt = await getAchievementsSeenAt(userId);
-          const c = await getUnreadAchievementCount(userId, seenAt);
-          if (alive) setUnreadCount(c);
+          const [achievementTotal, pendingInvites] = await Promise.all([
+            getUnreadAchievementCount(userId, seenAt),
+            listMyPendingOrganizationInvites(),
+          ]);
+
+          if (alive) {
+            setUnreadCount(achievementTotal);
+            setPendingInviteCount(pendingInvites.length);
+          }
         } catch {
-          if (alive) setUnreadCount(0);
+          if (alive) {
+            setUnreadCount(0);
+            setPendingInviteCount(0);
+          }
         }
       })();
 
@@ -142,6 +175,7 @@ export default function Home() {
   );
 
   const showOverlay = isAdmin && adminMode;
+  const showFourButtonGrid = showOrganizationButton;
 
   return (
     <View style={styles.container}>
@@ -149,6 +183,24 @@ export default function Home() {
       <View style={styles.appBar}>
         <Text style={styles.appTitle}>PhishGuard</Text>
         <View style={styles.headerActions}>
+          {userId && (
+            <Link href="/organization-invites" asChild>
+              <Pressable
+                accessibilityLabel="Open invites"
+                style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 6 }]}
+              >
+                <View>
+                  <Ionicons name="mail-open-outline" size={21} />
+                  {pendingInviteCount > 0 && (
+                    <View style={styles.achievementBadge}>
+                      <Text style={styles.achievementBadgeText}>{pendingInviteCount}</Text>
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            </Link>
+          )}
+
           <Link href="/achievements" asChild>
             <Pressable
               accessibilityLabel="Open achievements"
@@ -180,6 +232,7 @@ export default function Home() {
 
       <Text style={{ fontSize: 12, opacity: 0.6 }}>
         role = {roleLoading ? "loading..." : role ?? "none"}
+        {` • companyRole=${formatCompanyRole(activeOrganizationMembership?.membershipRole)}`}
         {isAdmin ? ` • adminMode=${adminMode ? "ON" : "OFF"}` : ""}
       </Text>
 
@@ -198,31 +251,76 @@ export default function Home() {
       </View>
 
       <View style={styles.bottomSection}>
-        <View style={{ alignItems: "center", marginBottom: 24 }}>
-          <CircleButton
-            label="Training"
-            href="/training"
-            size={140}
-            icon={<Ionicons name="book-outline" size={48} />}
-            showAdminOverlay={showOverlay}
-          />
-        </View>
+        {showFourButtonGrid ? (
+          <View style={styles.gridWrap}>
+            <View style={styles.row}>
+              <CircleButton
+                label="Training"
+                href="/training"
+                size={110}
+                icon={<Ionicons name="book-outline" size={38} />}
+                showAdminOverlay={showOverlay}
+              />
 
-        <View style={styles.row}>
-          <CircleButton
-            label="Classic Quiz"
-            href="/classic-quiz"
-            icon={<Ionicons name="help-circle-outline" size={40} />}
-            showAdminOverlay={showOverlay}
-          />
-          <View style={{ width: 24 }} />
-          <CircleButton
-            label="Visual Quiz"
-            href="/visual-quiz"
-            icon={<MaterialCommunityIcons name="image-search-outline" size={40} />}
-            showAdminOverlay={showOverlay}
-          />
-        </View>
+              <View style={{ width: 24 }} />
+
+              <CircleButton
+                label={organizationButtonLabel}
+                href={organizationButtonHref}
+                size={110}
+                icon={<Ionicons name="business-outline" size={38} />}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <CircleButton
+                label="Classic Quiz"
+                href="/classic-quiz"
+                size={110}
+                icon={<Ionicons name="help-circle-outline" size={38} />}
+                showAdminOverlay={showOverlay}
+              />
+
+              <View style={{ width: 24 }} />
+
+              <CircleButton
+                label="Visual Quiz"
+                href="/visual-quiz"
+                size={110}
+                icon={<MaterialCommunityIcons name="image-search-outline" size={38} />}
+                showAdminOverlay={showOverlay}
+              />
+            </View>
+          </View>
+        ) : (
+          <>
+            <View style={{ alignItems: "center", marginBottom: 24 }}>
+              <CircleButton
+                label="Training"
+                href="/training"
+                size={140}
+                icon={<Ionicons name="book-outline" size={48} />}
+                showAdminOverlay={showOverlay}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <CircleButton
+                label="Classic Quiz"
+                href="/classic-quiz"
+                icon={<Ionicons name="help-circle-outline" size={40} />}
+                showAdminOverlay={showOverlay}
+              />
+              <View style={{ width: 24 }} />
+              <CircleButton
+                label="Visual Quiz"
+                href="/visual-quiz"
+                icon={<MaterialCommunityIcons name="image-search-outline" size={40} />}
+                showAdminOverlay={showOverlay}
+              />
+            </View>
+          </>
+        )}
       </View>
     </View>
   );
@@ -279,6 +377,11 @@ const styles = StyleSheet.create({
 
   bottomSection: {
     paddingBottom: 28,
+    alignItems: "center",
+  },
+
+  gridWrap: {
+    gap: 24,
     alignItems: "center",
   },
 

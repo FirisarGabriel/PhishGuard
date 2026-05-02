@@ -281,4 +281,205 @@ export async function runMigrations() {
     `CREATE INDEX IF NOT EXISTS idx_TrainingBlockProgress_user_lesson ON TrainingBlockProgress(userId, lessonId)`,
     `CREATE INDEX IF NOT EXISTS idx_TrainingBlockProgress_user_block ON TrainingBlockProgress(userId, blockId)`,
   ]);
+
+  // --- MIGRATION 008: B2B entities cached locally for hybrid B2C/B2B mode ---
+  await applyMigration("008-b2b-core-cache", [
+    `
+    CREATE TABLE IF NOT EXISTS Organization (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      slug TEXT NOT NULL UNIQUE,
+      createdBy TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      archivedAt INTEGER,
+      pendingSync INTEGER NOT NULL DEFAULT 0
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_Organization_slug ON Organization(slug)`,
+
+    `
+    CREATE TABLE IF NOT EXISTS OrganizationMember (
+      id TEXT PRIMARY KEY,
+      organizationId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      role TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      joinedAt INTEGER,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      pendingSync INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(organizationId, userId),
+      FOREIGN KEY (organizationId) REFERENCES Organization(id) ON DELETE CASCADE
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_OrganizationMember_org ON OrganizationMember(organizationId)`,
+    `CREATE INDEX IF NOT EXISTS idx_OrganizationMember_user ON OrganizationMember(userId)`,
+
+    `
+    CREATE TABLE IF NOT EXISTS Team (
+      id TEXT PRIMARY KEY,
+      organizationId TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      createdBy TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      archivedAt INTEGER,
+      pendingSync INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(organizationId, name),
+      FOREIGN KEY (organizationId) REFERENCES Organization(id) ON DELETE CASCADE
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_Team_org ON Team(organizationId)`,
+
+    `
+    CREATE TABLE IF NOT EXISTS TeamMember (
+      id TEXT PRIMARY KEY,
+      teamId TEXT NOT NULL,
+      organizationId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      pendingSync INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(teamId, userId),
+      FOREIGN KEY (teamId) REFERENCES Team(id) ON DELETE CASCADE,
+      FOREIGN KEY (organizationId) REFERENCES Organization(id) ON DELETE CASCADE
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_TeamMember_team ON TeamMember(teamId)`,
+    `CREATE INDEX IF NOT EXISTS idx_TeamMember_user ON TeamMember(userId)`,
+
+    `
+    CREATE TABLE IF NOT EXISTS OrganizationInvite (
+      id TEXT PRIMARY KEY,
+      organizationId TEXT NOT NULL,
+      email TEXT NOT NULL,
+      role TEXT NOT NULL,
+      invitedBy TEXT NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending',
+      expiresAt INTEGER,
+      acceptedAt INTEGER,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      pendingSync INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (organizationId) REFERENCES Organization(id) ON DELETE CASCADE
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_OrganizationInvite_org ON OrganizationInvite(organizationId)`,
+    `CREATE INDEX IF NOT EXISTS idx_OrganizationInvite_email ON OrganizationInvite(email)`,
+
+    `
+    CREATE TABLE IF NOT EXISTS TrainingAssignment (
+      id TEXT PRIMARY KEY,
+      organizationId TEXT NOT NULL,
+      lessonId TEXT NOT NULL,
+      title TEXT,
+      note TEXT,
+      targetType TEXT NOT NULL,
+      targetId TEXT NOT NULL,
+      assignedBy TEXT NOT NULL,
+      dueAt INTEGER,
+      status TEXT NOT NULL DEFAULT 'active',
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL,
+      pendingSync INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (organizationId) REFERENCES Organization(id) ON DELETE CASCADE,
+      FOREIGN KEY (lessonId) REFERENCES Lesson(id) ON DELETE CASCADE
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_TrainingAssignment_org ON TrainingAssignment(organizationId)`,
+    `CREATE INDEX IF NOT EXISTS idx_TrainingAssignment_lesson ON TrainingAssignment(lessonId)`,
+    `CREATE INDEX IF NOT EXISTS idx_TrainingAssignment_target ON TrainingAssignment(targetType, targetId)`,
+
+    `
+    CREATE TABLE IF NOT EXISTS AssignmentRecipient (
+      id TEXT PRIMARY KEY,
+      assignmentId TEXT NOT NULL,
+      organizationId TEXT NOT NULL,
+      lessonId TEXT NOT NULL,
+      userId TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'not_started',
+      assignedAt INTEGER NOT NULL,
+      dueAt INTEGER,
+      startedAt INTEGER,
+      completedAt INTEGER,
+      lastProgressAt INTEGER,
+      pendingSync INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(assignmentId, userId),
+      FOREIGN KEY (assignmentId) REFERENCES TrainingAssignment(id) ON DELETE CASCADE,
+      FOREIGN KEY (organizationId) REFERENCES Organization(id) ON DELETE CASCADE,
+      FOREIGN KEY (lessonId) REFERENCES Lesson(id) ON DELETE CASCADE
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_AssignmentRecipient_assignment ON AssignmentRecipient(assignmentId)`,
+    `CREATE INDEX IF NOT EXISTS idx_AssignmentRecipient_user ON AssignmentRecipient(userId)`,
+    `CREATE INDEX IF NOT EXISTS idx_AssignmentRecipient_status ON AssignmentRecipient(status)`,
+  ]);
+
+  // --- MIGRATION 009: Sync metadata for low-cost bidirectional reconciliation ---
+  await applyMigration("009-sync-metadata", [
+    `
+    CREATE TABLE IF NOT EXISTS SyncCursor (
+      entity TEXT PRIMARY KEY,
+      cursor TEXT,
+      lastSyncedAt INTEGER
+    )
+    `,
+    `
+    CREATE TABLE IF NOT EXISTS SyncOutbox (
+      id TEXT PRIMARY KEY,
+      entity TEXT NOT NULL,
+      recordId TEXT NOT NULL,
+      operation TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      lastError TEXT,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_SyncOutbox_entity ON SyncOutbox(entity)`,
+    `CREATE INDEX IF NOT EXISTS idx_SyncOutbox_record ON SyncOutbox(recordId)`,
+  ]);
+
+  // --- MIGRATION 010: Assignment-specific progress cache kept separate from B2C progress ---
+  await applyMigration("010-assignment-progress-cache", [
+    `
+    CREATE TABLE IF NOT EXISTS AssignmentLessonProgress (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      lessonId TEXT NOT NULL,
+      assignmentRecipientId TEXT NOT NULL,
+      completion INTEGER NOT NULL DEFAULT 0,
+      lastViewedAt INTEGER,
+      pendingSync INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(userId, lessonId, assignmentRecipientId),
+      FOREIGN KEY (assignmentRecipientId) REFERENCES AssignmentRecipient(id) ON DELETE CASCADE,
+      FOREIGN KEY (lessonId) REFERENCES Lesson(id) ON DELETE CASCADE
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_AssignmentLessonProgress_user ON AssignmentLessonProgress(userId)`,
+    `CREATE INDEX IF NOT EXISTS idx_AssignmentLessonProgress_recipient ON AssignmentLessonProgress(assignmentRecipientId)`,
+
+    `
+    CREATE TABLE IF NOT EXISTS AssignmentTrainingBlockProgress (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      lessonId TEXT NOT NULL,
+      blockId TEXT NOT NULL,
+      assignmentRecipientId TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'not_started',
+      selectedOptionId TEXT,
+      isCorrect INTEGER,
+      completedAt INTEGER,
+      pendingSync INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(userId, blockId, assignmentRecipientId),
+      FOREIGN KEY (assignmentRecipientId) REFERENCES AssignmentRecipient(id) ON DELETE CASCADE,
+      FOREIGN KEY (blockId) REFERENCES TrainingBlock(id) ON DELETE CASCADE
+    )
+    `,
+    `CREATE INDEX IF NOT EXISTS idx_AssignmentTrainingBlockProgress_user_lesson ON AssignmentTrainingBlockProgress(userId, lessonId)`,
+    `CREATE INDEX IF NOT EXISTS idx_AssignmentTrainingBlockProgress_recipient ON AssignmentTrainingBlockProgress(assignmentRecipientId)`,
+  ]);
 }

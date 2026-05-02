@@ -293,6 +293,51 @@ export async function getAttemptsForQuiz(
   return r.rows as QuizAttempt[];
 }
 
+export async function listPendingQuizAttempts(
+  userId: string
+): Promise<QuizAttempt[]> {
+  const r = await execute(
+    `
+    SELECT *
+    FROM QuizAttempt
+    WHERE userId=? AND pendingSync=1
+    ORDER BY startedAt ASC
+    `,
+    [userId]
+  );
+  return r.rows as QuizAttempt[];
+}
+
+export async function markQuizAttemptsSynced(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+
+  const placeholders = ids.map(() => "?").join(", ");
+  await execute(
+    `UPDATE QuizAttempt SET pendingSync=0 WHERE id IN (${placeholders})`,
+    ids
+  );
+}
+
+export async function cacheRemoteQuizAttempts(rows: QuizAttempt[]): Promise<void> {
+  for (const row of rows) {
+    await execute(
+      `
+      INSERT OR REPLACE INTO QuizAttempt (id, userId, quizId, score, startedAt, finishedAt, variant, pendingSync)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+      `,
+      [
+        row.id,
+        row.userId,
+        row.quizId,
+        row.score,
+        row.startedAt,
+        row.finishedAt ?? null,
+        row.variant ?? null,
+      ]
+    );
+  }
+}
+
 /** testing helpers */
 export async function resetAllAttempts(userId: string) {
   await execute(`DELETE FROM QuizAttempt WHERE userId=?`, [userId]);

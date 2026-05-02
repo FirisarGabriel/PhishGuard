@@ -3,11 +3,26 @@ import { v4 as uuid } from "uuid";
 import type {
   Lesson,
   LessonProgress,
+  TrainingProgressContext,
   TrainingBlock,
   TrainingBlockOption,
   TrainingBlockProgress,
   TrainingBlockWithOptions,
 } from "../types/models";
+
+function isAssignmentContext(context?: TrainingProgressContext) {
+  return context?.source === "assignment" && !!context.assignmentRecipientId;
+}
+
+function getLessonProgressTable(context?: TrainingProgressContext) {
+  return isAssignmentContext(context) ? "AssignmentLessonProgress" : "LessonProgress";
+}
+
+function getBlockProgressTable(context?: TrainingProgressContext) {
+  return isAssignmentContext(context)
+    ? "AssignmentTrainingBlockProgress"
+    : "TrainingBlockProgress";
+}
 
 export async function getLessons(): Promise<Lesson[]> {
   const res = await execute(`SELECT * FROM Lesson ORDER BY "order" ASC`);
@@ -58,54 +73,111 @@ export async function getLessonBlocks(
 
 export async function getBlockProgressMap(
   userId: string,
-  lessonId: string
+  lessonId: string,
+  context?: TrainingProgressContext
 ): Promise<Record<string, TrainingBlockProgress>> {
+  const table = getBlockProgressTable(context);
+  const assignmentFilter = isAssignmentContext(context)
+    ? ` AND assignmentRecipientId=?`
+    : "";
+  const params = isAssignmentContext(context)
+    ? [userId, lessonId, context?.assignmentRecipientId]
+    : [userId, lessonId];
   const res = await execute(
     `
     SELECT *
-    FROM TrainingBlockProgress
-    WHERE userId=? AND lessonId=?
+    FROM ${table}
+    WHERE userId=? AND lessonId=?${assignmentFilter}
     `,
-    [userId, lessonId]
+    params
   );
   const map: Record<string, TrainingBlockProgress> = {};
-  res.rows.forEach((r: any) => (map[r.blockId] = r));
+  res.rows.forEach((r: any) => {
+    map[r.blockId] = {
+      ...r,
+      source: isAssignmentContext(context) ? "assignment" : "b2c",
+      assignmentRecipientId: r.assignmentRecipientId ?? context?.assignmentRecipientId ?? null,
+    };
+  });
   return map;
 }
 
 async function upsertLessonProgress(
   userId: string,
   lessonId: string,
-  completion: number
+  completion: number,
+  context?: TrainingProgressContext
 ) {
+  const table = getLessonProgressTable(context);
   const now = Date.now();
+  const assignmentFilter = isAssignmentContext(context)
+    ? ` AND assignmentRecipientId=?`
+    : "";
+  const existingParams = isAssignmentContext(context)
+    ? [userId, lessonId, context?.assignmentRecipientId]
+    : [userId, lessonId];
   const existing = await execute(
-    `SELECT id FROM LessonProgress WHERE userId=? AND lessonId=?`,
-    [userId, lessonId]
+    `SELECT id FROM ${table} WHERE userId=? AND lessonId=?${assignmentFilter}`,
+    existingParams
   );
 
   if (existing.rows.length) {
+    if (isAssignmentContext(context)) {
+      await execute(
+        `
+        UPDATE ${table}
+        SET completion=?, lastViewedAt=?, pendingSync=1
+        WHERE userId=? AND lessonId=? AND assignmentRecipientId=?
+        `,
+        [completion, now, userId, lessonId, context?.assignmentRecipientId]
+      );
+    } else {
+      await execute(
+        `
+        UPDATE ${table}
+        SET completion=?, lastViewedAt=?, pendingSync=1
+        WHERE userId=? AND lessonId=?
+        `,
+        [completion, now, userId, lessonId]
+      );
+    }
+    return;
+  }
+
+  if (isAssignmentContext(context)) {
     await execute(
       `
-      UPDATE LessonProgress
-      SET completion=?, lastViewedAt=?, pendingSync=1
-      WHERE userId=? AND lessonId=?
+      INSERT INTO ${table} (
+        id, userId, lessonId, assignmentRecipientId, completion, lastViewedAt, pendingSync
+      )
+      VALUES (?, ?, ?, ?, ?, ?, 1)
       `,
-      [completion, now, userId, lessonId]
+      [uuid(), userId, lessonId, context?.assignmentRecipientId, completion, now]
     );
     return;
   }
 
   await execute(
     `
-    INSERT INTO LessonProgress (id, userId, lessonId, completion, lastViewedAt, pendingSync)
+    INSERT INTO ${table} (id, userId, lessonId, completion, lastViewedAt, pendingSync)
     VALUES (?, ?, ?, ?, ?, 1)
     `,
     [uuid(), userId, lessonId, completion, now]
   );
 }
 
-async function recomputeLessonCompletion(userId: string, lessonId: string) {
+async function recomputeLessonCompletion(
+  userId: string,
+  lessonId: string,
+  context?: TrainingProgressContext
+) {
+  const progressTable = getBlockProgressTable(context);
+  const assignmentFilter = isAssignmentContext(context)
+    ? ` AND tbp.assignmentRecipientId=?`
+    : "";
+  const params = isAssignmentContext(context)
+    ? [userId, lessonId, context?.assignmentRecipientId]
+    : [userId, lessonId];
   const requiredCountRes = await execute(
     `
     SELECT COUNT(*) as c
@@ -121,63 +193,97 @@ async function recomputeLessonCompletion(userId: string, lessonId: string) {
     const doneCountRes = await execute(
       `
       SELECT COUNT(*) as c
-      FROM TrainingBlockProgress tbp
+      FROM ${progressTable} tbp
       JOIN TrainingBlock tb ON tb.id = tbp.blockId
       WHERE tbp.userId=?
         AND tbp.lessonId=?
+        ${assignmentFilter}
         AND tbp.status='completed'
         AND tb.isRequired=1
       `,
-      [userId, lessonId]
+      params
     );
     const doneCount = Number(doneCountRes.rows?.[0]?.c ?? 0);
     completion = Math.round((doneCount / requiredCount) * 100);
   }
 
-  await upsertLessonProgress(userId, lessonId, completion);
+  await upsertLessonProgress(userId, lessonId, completion, context);
 }
 
 export async function completeTextBlock(
   userId: string,
   lessonId: string,
-  blockId: string
+  blockId: string,
+  context?: TrainingProgressContext
 ): Promise<void> {
+  const table = getBlockProgressTable(context);
   const now = Date.now();
+  const assignmentFilter = isAssignmentContext(context)
+    ? ` AND assignmentRecipientId=?`
+    : "";
+  const existingParams = isAssignmentContext(context)
+    ? [userId, blockId, context?.assignmentRecipientId]
+    : [userId, blockId];
   const existing = await execute(
-    `SELECT id FROM TrainingBlockProgress WHERE userId=? AND blockId=?`,
-    [userId, blockId]
+    `SELECT id FROM ${table} WHERE userId=? AND blockId=?${assignmentFilter}`,
+    existingParams
   );
 
   if (existing.rows.length) {
-    await execute(
-      `
-      UPDATE TrainingBlockProgress
-      SET status='completed', completedAt=?, pendingSync=1
-      WHERE userId=? AND blockId=?
-      `,
-      [now, userId, blockId]
-    );
+    if (isAssignmentContext(context)) {
+      await execute(
+        `
+        UPDATE ${table}
+        SET status='completed', completedAt=?, pendingSync=1
+        WHERE userId=? AND blockId=? AND assignmentRecipientId=?
+        `,
+        [now, userId, blockId, context?.assignmentRecipientId]
+      );
+    } else {
+      await execute(
+        `
+        UPDATE ${table}
+        SET status='completed', completedAt=?, pendingSync=1
+        WHERE userId=? AND blockId=?
+        `,
+        [now, userId, blockId]
+      );
+    }
   } else {
-    await execute(
-      `
-      INSERT INTO TrainingBlockProgress (
-        id, userId, lessonId, blockId, status, completedAt, pendingSync
-      )
-      VALUES (?, ?, ?, ?, 'completed', ?, 1)
-      `,
-      [uuid(), userId, lessonId, blockId, now]
-    );
+    if (isAssignmentContext(context)) {
+      await execute(
+        `
+        INSERT INTO ${table} (
+          id, userId, lessonId, blockId, assignmentRecipientId, status, completedAt, pendingSync
+        )
+        VALUES (?, ?, ?, ?, ?, 'completed', ?, 1)
+        `,
+        [uuid(), userId, lessonId, blockId, context?.assignmentRecipientId, now]
+      );
+    } else {
+      await execute(
+        `
+        INSERT INTO ${table} (
+          id, userId, lessonId, blockId, status, completedAt, pendingSync
+        )
+        VALUES (?, ?, ?, ?, 'completed', ?, 1)
+        `,
+        [uuid(), userId, lessonId, blockId, now]
+      );
+    }
   }
 
-  await recomputeLessonCompletion(userId, lessonId);
+  await recomputeLessonCompletion(userId, lessonId, context);
 }
 
 export async function submitSingleChoiceAnswer(
   userId: string,
   lessonId: string,
   blockId: string,
-  selectedOptionId: string
+  selectedOptionId: string,
+  context?: TrainingProgressContext
 ): Promise<{ isCorrect: boolean }> {
+  const table = getBlockProgressTable(context);
   const optionRes = await execute(
     `SELECT isCorrect FROM TrainingBlockOption WHERE id=? AND blockId=? LIMIT 1`,
     [selectedOptionId, blockId]
@@ -189,54 +295,348 @@ export async function submitSingleChoiceAnswer(
   const isCorrect = Number(optionRes.rows[0]?.isCorrect ?? 0) === 1;
   const status = isCorrect ? "completed" : "not_started";
   const now = Date.now();
+  const assignmentFilter = isAssignmentContext(context)
+    ? ` AND assignmentRecipientId=?`
+    : "";
+  const existingParams = isAssignmentContext(context)
+    ? [userId, blockId, context?.assignmentRecipientId]
+    : [userId, blockId];
   const existing = await execute(
-    `SELECT id FROM TrainingBlockProgress WHERE userId=? AND blockId=?`,
-    [userId, blockId]
+    `SELECT id FROM ${table} WHERE userId=? AND blockId=?${assignmentFilter}`,
+    existingParams
   );
 
   if (existing.rows.length) {
-    await execute(
-      `
-      UPDATE TrainingBlockProgress
-      SET status=?, selectedOptionId=?, isCorrect=?, completedAt=?, pendingSync=1
-      WHERE userId=? AND blockId=?
-      `,
-      [status, selectedOptionId, isCorrect ? 1 : 0, isCorrect ? now : null, userId, blockId]
-    );
+    if (isAssignmentContext(context)) {
+      await execute(
+        `
+        UPDATE ${table}
+        SET status=?, selectedOptionId=?, isCorrect=?, completedAt=?, pendingSync=1
+        WHERE userId=? AND blockId=? AND assignmentRecipientId=?
+        `,
+        [
+          status,
+          selectedOptionId,
+          isCorrect ? 1 : 0,
+          isCorrect ? now : null,
+          userId,
+          blockId,
+          context?.assignmentRecipientId,
+        ]
+      );
+    } else {
+      await execute(
+        `
+        UPDATE ${table}
+        SET status=?, selectedOptionId=?, isCorrect=?, completedAt=?, pendingSync=1
+        WHERE userId=? AND blockId=?
+        `,
+        [status, selectedOptionId, isCorrect ? 1 : 0, isCorrect ? now : null, userId, blockId]
+      );
+    }
   } else {
-    await execute(
-      `
-      INSERT INTO TrainingBlockProgress (
-        id, userId, lessonId, blockId, status, selectedOptionId, isCorrect, completedAt, pendingSync
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-      `,
-      [
-        uuid(),
-        userId,
-        lessonId,
-        blockId,
-        status,
-        selectedOptionId,
-        isCorrect ? 1 : 0,
-        isCorrect ? now : null,
-      ]
-    );
+    if (isAssignmentContext(context)) {
+      await execute(
+        `
+        INSERT INTO ${table} (
+          id, userId, lessonId, blockId, assignmentRecipientId, status, selectedOptionId, isCorrect, completedAt, pendingSync
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        `,
+        [
+          uuid(),
+          userId,
+          lessonId,
+          blockId,
+          context?.assignmentRecipientId,
+          status,
+          selectedOptionId,
+          isCorrect ? 1 : 0,
+          isCorrect ? now : null,
+        ]
+      );
+    } else {
+      await execute(
+        `
+        INSERT INTO ${table} (
+          id, userId, lessonId, blockId, status, selectedOptionId, isCorrect, completedAt, pendingSync
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+        `,
+        [
+          uuid(),
+          userId,
+          lessonId,
+          blockId,
+          status,
+          selectedOptionId,
+          isCorrect ? 1 : 0,
+          isCorrect ? now : null,
+        ]
+      );
+    }
   }
 
-  await recomputeLessonCompletion(userId, lessonId);
+  await recomputeLessonCompletion(userId, lessonId, context);
   return { isCorrect };
 }
 
 export async function getProgressMap(
+  userId: string,
+  context?: TrainingProgressContext
+): Promise<Record<string, LessonProgress>> {
+  const table = getLessonProgressTable(context);
+  const assignmentFilter = isAssignmentContext(context)
+    ? ` AND assignmentRecipientId=?`
+    : "";
+  const params = isAssignmentContext(context)
+    ? [userId, context?.assignmentRecipientId]
+    : [userId];
+  const res = await execute(`SELECT * FROM ${table} WHERE userId=?${assignmentFilter}`, params);
+  const map: Record<string, LessonProgress> = {};
+  res.rows.forEach((r: any) => {
+    map[r.lessonId] = {
+      ...r,
+      source: isAssignmentContext(context) ? "assignment" : "b2c",
+      assignmentRecipientId: r.assignmentRecipientId ?? context?.assignmentRecipientId ?? null,
+    };
+  });
+  return map;
+}
+
+export async function getAssignmentLessonProgressMap(
   userId: string
 ): Promise<Record<string, LessonProgress>> {
-  const res = await execute(`SELECT * FROM LessonProgress WHERE userId=?`, [
-    userId,
-  ]);
+  const res = await execute(
+    `
+    SELECT *
+    FROM AssignmentLessonProgress
+    WHERE userId=?
+    `,
+    [userId]
+  );
   const map: Record<string, LessonProgress> = {};
-  res.rows.forEach((r: any) => (map[r.lessonId] = r));
+  res.rows.forEach((r: any) => {
+    if (!r.assignmentRecipientId) return;
+    map[r.assignmentRecipientId] = {
+      ...r,
+      source: "assignment",
+      assignmentRecipientId: r.assignmentRecipientId,
+    };
+  });
   return map;
+}
+
+export async function listPendingLessonProgress(
+  userId: string
+): Promise<LessonProgress[]> {
+  const res = await execute(
+    `
+    SELECT *
+    FROM LessonProgress
+    WHERE userId=? AND pendingSync=1
+    ORDER BY lastViewedAt ASC
+    `,
+    [userId]
+  );
+  return (res.rows as LessonProgress[]).map((row) => ({
+    ...row,
+    source: "b2c",
+    assignmentRecipientId: null,
+  }));
+}
+
+export async function listPendingTrainingBlockProgress(
+  userId: string
+): Promise<TrainingBlockProgress[]> {
+  const res = await execute(
+    `
+    SELECT *
+    FROM TrainingBlockProgress
+    WHERE userId=? AND pendingSync=1
+    ORDER BY completedAt ASC
+    `,
+    [userId]
+  );
+  return (res.rows as TrainingBlockProgress[]).map((row) => ({
+    ...row,
+    source: "b2c",
+    assignmentRecipientId: null,
+  }));
+}
+
+export async function listPendingAssignmentLessonProgress(
+  userId: string
+): Promise<LessonProgress[]> {
+  const res = await execute(
+    `
+    SELECT *
+    FROM AssignmentLessonProgress
+    WHERE userId=? AND pendingSync=1
+    ORDER BY lastViewedAt ASC
+    `,
+    [userId]
+  );
+  return (res.rows as LessonProgress[]).map((row) => ({
+    ...row,
+    source: "assignment",
+    assignmentRecipientId: row.assignmentRecipientId ?? null,
+  }));
+}
+
+export async function listPendingAssignmentTrainingBlockProgress(
+  userId: string
+): Promise<TrainingBlockProgress[]> {
+  const res = await execute(
+    `
+    SELECT *
+    FROM AssignmentTrainingBlockProgress
+    WHERE userId=? AND pendingSync=1
+    ORDER BY completedAt ASC
+    `,
+    [userId]
+  );
+  return (res.rows as TrainingBlockProgress[]).map((row) => ({
+    ...row,
+    source: "assignment",
+    assignmentRecipientId: row.assignmentRecipientId ?? null,
+  }));
+}
+
+export async function markLessonProgressSynced(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+
+  const placeholders = ids.map(() => "?").join(", ");
+  await execute(
+    `UPDATE LessonProgress SET pendingSync=0 WHERE id IN (${placeholders})`,
+    ids
+  );
+}
+
+export async function markAssignmentLessonProgressSynced(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+
+  const placeholders = ids.map(() => "?").join(", ");
+  await execute(
+    `UPDATE AssignmentLessonProgress SET pendingSync=0 WHERE id IN (${placeholders})`,
+    ids
+  );
+}
+
+export async function markTrainingBlockProgressSynced(
+  ids: string[]
+): Promise<void> {
+  if (!ids.length) return;
+
+  const placeholders = ids.map(() => "?").join(", ");
+  await execute(
+    `UPDATE TrainingBlockProgress SET pendingSync=0 WHERE id IN (${placeholders})`,
+    ids
+  );
+}
+
+export async function markAssignmentTrainingBlockProgressSynced(
+  ids: string[]
+): Promise<void> {
+  if (!ids.length) return;
+
+  const placeholders = ids.map(() => "?").join(", ");
+  await execute(
+    `UPDATE AssignmentTrainingBlockProgress SET pendingSync=0 WHERE id IN (${placeholders})`,
+    ids
+  );
+}
+
+export async function cacheRemoteLessonProgress(
+  rows: LessonProgress[]
+): Promise<void> {
+  for (const row of rows) {
+    await execute(
+      `
+      INSERT OR REPLACE INTO LessonProgress (id, userId, lessonId, completion, lastViewedAt, pendingSync)
+      VALUES (?, ?, ?, ?, ?, 0)
+      `,
+      [row.id, row.userId, row.lessonId, row.completion, row.lastViewedAt ?? null]
+    );
+  }
+}
+
+export async function cacheRemoteAssignmentLessonProgress(
+  rows: LessonProgress[]
+): Promise<void> {
+  for (const row of rows) {
+    if (!row.assignmentRecipientId) continue;
+
+    await execute(
+      `
+      INSERT OR REPLACE INTO AssignmentLessonProgress (
+        id, userId, lessonId, assignmentRecipientId, completion, lastViewedAt, pendingSync
+      )
+      VALUES (?, ?, ?, ?, ?, ?, 0)
+      `,
+      [
+        row.id,
+        row.userId,
+        row.lessonId,
+        row.assignmentRecipientId,
+        row.completion,
+        row.lastViewedAt ?? null,
+      ]
+    );
+  }
+}
+
+export async function cacheRemoteTrainingBlockProgress(
+  rows: TrainingBlockProgress[]
+): Promise<void> {
+  for (const row of rows) {
+    await execute(
+      `
+      INSERT OR REPLACE INTO TrainingBlockProgress (
+        id, userId, lessonId, blockId, status, selectedOptionId, isCorrect, completedAt, pendingSync
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+      `,
+      [
+        row.id,
+        row.userId,
+        row.lessonId,
+        row.blockId,
+        row.status,
+        row.selectedOptionId ?? null,
+        row.isCorrect ?? null,
+        row.completedAt ?? null,
+      ]
+    );
+  }
+}
+
+export async function cacheRemoteAssignmentTrainingBlockProgress(
+  rows: TrainingBlockProgress[]
+): Promise<void> {
+  for (const row of rows) {
+    if (!row.assignmentRecipientId) continue;
+
+    await execute(
+      `
+      INSERT OR REPLACE INTO AssignmentTrainingBlockProgress (
+        id, userId, lessonId, blockId, assignmentRecipientId, status, selectedOptionId, isCorrect, completedAt, pendingSync
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+      `,
+      [
+        row.id,
+        row.userId,
+        row.lessonId,
+        row.blockId,
+        row.assignmentRecipientId,
+        row.status,
+        row.selectedOptionId ?? null,
+        row.isCorrect ?? null,
+        row.completedAt ?? null,
+      ]
+    );
+  }
 }
 
 /**
