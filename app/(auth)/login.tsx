@@ -88,8 +88,6 @@ export default function Login() {
         // Cerem URL-ul de OAuth de la supabase; redirectTo trebuie să existe în Supabase
         const { url, error: oauthErr } = await signInWithGoogle({ redirectTo });
 
-        console.log("[DEBUG] signInWithGoogle returned url:", url, " error:", oauthErr);
-
         if (oauthErr) {
           setError(oauthErr.message ?? "Google sign-in failed.");
           setLoading(false);

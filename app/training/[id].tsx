@@ -1,11 +1,12 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, Text, Pressable, ActivityIndicator, ScrollView, InteractionManager } from "react-native";
+import { View, Text, Pressable, ActivityIndicator, ScrollView, InteractionManager, Image } from "react-native";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import ConfettiCannon from "react-native-confetti-cannon";
 import { ErrorBanner } from "../../src/Feedback";
 import ProgressBar from "../../src/ProgressBar";
 import { theme } from "../../src/theme";
 import { ui } from "../../src/ui";
+import { getTrainingThumbnailSource } from "../../src/trainingThumbnails";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useAchievementToast } from "../../src/achievements/AchievementToastProvider";
 import { evaluateTrainingAchievements } from "../../src/repos/achievements";
@@ -407,6 +408,8 @@ export default function LessonDetail() {
     );
   }
 
+  const trainingThumbnailSource = getTrainingThumbnailSource(lesson.title);
+
   const renderTextBlock = (block: TrainingBlockWithOptions) => {
     const done = blockProgress[block.id]?.status === "completed";
     const busy = savingBlockId === block.id;
@@ -712,6 +715,21 @@ export default function LessonDetail() {
             gap: 6,
           }}
         >
+          {trainingThumbnailSource && (
+            <Image
+              source={trainingThumbnailSource}
+              resizeMode="contain"
+              style={{
+                width: "100%",
+                height: 180,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+                backgroundColor: theme.colors.surface2,
+                marginBottom: 10,
+              }}
+            />
+          )}
           <Text style={{ fontSize: 21, fontWeight: "700", color: theme.colors.text }}>
             {lesson.title}
           </Text>

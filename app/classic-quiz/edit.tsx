@@ -129,13 +129,13 @@ export default function ClassicQuizEdit() {
       if (isEdit) {
         await updateQuiz(String(id), {
           title: title.trim(),
-          description: description.trim() || null,
+          description: description.trim() || undefined,
           slug: slug.trim() || undefined,
         });
       } else {
         const created = await createQuiz({
           title: title.trim(),
-          description: description.trim() || null,
+          description: description.trim() || undefined,
           kind: "classic",
           slug: slug.trim() || undefined,
         });

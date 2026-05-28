@@ -53,9 +53,23 @@ export async function getBestScoresMapForKind(
 ): Promise<Record<string, number>> {
   const r = await execute(
     `
-    SELECT qa.quizId as quizId, MAX(qa.score) as best
+    SELECT
+      qa.quizId as quizId,
+      MAX(
+        ROUND(
+          (qa.score * 100.0) / CASE
+            WHEN COALESCE(qc.totalQuestions, 0) > 0 THEN qc.totalQuestions
+            ELSE 1
+          END
+        )
+      ) as best
     FROM QuizAttempt qa
     JOIN Quiz q ON q.id = qa.quizId
+    LEFT JOIN (
+      SELECT quizId, COUNT(*) as totalQuestions
+      FROM Question
+      GROUP BY quizId
+    ) qc ON qc.quizId = qa.quizId
     WHERE qa.userId=? AND q.kind=? AND qa.finishedAt IS NOT NULL
     GROUP BY qa.quizId
   `,
@@ -92,6 +106,55 @@ export async function getLatestVisualScoresMap(
     }
 
     map[variant] = Number(row?.score ?? 0);
+  });
+
+  return map;
+}
+
+export async function getBestVisualScoresMap(
+  userId: string,
+  quizId: string
+): Promise<Partial<Record<VisualQuizVariantId, number>>> {
+  const r = await execute(
+    `
+    SELECT
+      qa.variant as variant,
+      MAX(
+        ROUND(
+          (qa.score * 100.0) / CASE
+            WHEN qa.variant = 'randomized' AND COALESCE(totalCards.totalCards, 0) > 0 THEN totalCards.totalCards
+            WHEN COALESCE(variantCards.totalCards, 0) > 0 THEN variantCards.totalCards
+            ELSE 1
+          END
+        )
+      ) as best
+    FROM QuizAttempt qa
+    LEFT JOIN (
+      SELECT variant, COUNT(*) as totalCards
+      FROM VisualCard
+      WHERE quizId=?
+      GROUP BY variant
+    ) variantCards ON variantCards.variant = qa.variant
+    LEFT JOIN (
+      SELECT COUNT(*) as totalCards
+      FROM VisualCard
+      WHERE quizId=?
+    ) totalCards ON 1=1
+    WHERE qa.userId=? AND qa.quizId=? AND qa.finishedAt IS NOT NULL AND qa.variant IS NOT NULL
+    GROUP BY qa.variant
+  `,
+    [quizId, quizId, userId, quizId]
+  );
+
+  const map: Partial<Record<VisualQuizVariantId, number>> = {};
+
+  r.rows.forEach((row: any) => {
+    const variant = row?.variant as VisualQuizVariantId | undefined;
+    if (!variant) {
+      return;
+    }
+
+    map[variant] = Number(row?.best ?? 0);
   });
 
   return map;

@@ -194,7 +194,7 @@ export default function Settings() {
 
   return (
     <ScrollView style={ui.screen} contentContainerStyle={{ padding: 24, gap: 16 }}>
-      <View style={{ ...ui.screenSection, gap: 12 }}>
+      <View style={{ gap: 12 }}>
         <View style={{ gap: 2 }}>
           <Text style={theme.typography.titleMd}>
             Settings
@@ -215,8 +215,6 @@ export default function Settings() {
 
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           <StatusChip label={isAdmin ? "Platform admin" : "Standard user"} />
-          {isAdmin ? <StatusChip label={adminMode ? "Admin Mode on" : "Admin Mode off"} /> : null}
-          {enabled ? <StatusChip label="Biometrics on" /> : <StatusChip label="Biometrics off" />}
         </View>
       </View>
 

@@ -295,6 +295,17 @@ export async function listMyInboxNotifications(limit = 20): Promise<InboxNotific
   }));
 }
 
+export async function dismissInboxNotification(notificationId: string): Promise<void> {
+  const { error } = await supabase
+    .from("user_inbox_notifications")
+    .delete()
+    .eq("id", notificationId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function acceptOrganizationInvite(input: { token: string }): Promise<void> {
   const { error } = await supabase.rpc("accept_organization_invite", {
     invite_token: input.token,

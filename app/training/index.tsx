@@ -8,6 +8,8 @@ import {
   FlatList,
   RefreshControl,
   Alert,
+  Image,
+  type ImageSourcePropType,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
@@ -38,6 +40,58 @@ type AssignedTrainingItem = AssignmentRecipient & {
   progress: number;
   organizationName?: string;
 };
+
+const trainingThumbnailEntries: Array<{
+  titles: string[];
+  source: ImageSourcePropType;
+}> = [
+  {
+    titles: ["Spot Suspicious Links Before You Tap", "Spotting Suspicious Links"],
+    source: require("../../assets/training-thumbnails/suspicious_links.png"),
+  },
+  {
+    titles: ["Resist Urgency and Fear Tactics", "Urgency and Fear Tactics"],
+    source: require("../../assets/training-thumbnails/urgency.png"),
+  },
+  {
+    titles: ["Verify the Real Sender", "Sender Email Address Tricks"],
+    source: require("../../assets/training-thumbnails/real_sender.png"),
+  },
+  {
+    titles: ["Handle Attachments Safely", "Attachments and Downloads"],
+    source: require("../../assets/training-thumbnails/attachements.png"),
+  },
+  {
+    titles: [
+      "Question Too-Good-To-Be-True Offers",
+      "Too Good to Be True Offers",
+      "Question Offers That Sound Too Good",
+    ],
+    source: require("../../assets/training-thumbnails/offers_too_good.png"),
+  },
+];
+
+const trainingThumbnailStyle = {
+  width: "100%" as const,
+  height: 180,
+  borderRadius: 14,
+  borderWidth: 1,
+  borderColor: theme.colors.border,
+  backgroundColor: theme.colors.surface2,
+};
+
+function normalizeTrainingTitle(title: string) {
+  return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function getTrainingThumbnailSource(title: string) {
+  const normalizedTitle = normalizeTrainingTitle(title);
+  return trainingThumbnailEntries.find((entry) =>
+    entry.titles.some(
+      (candidateTitle) => normalizeTrainingTitle(candidateTitle) === normalizedTitle
+    )
+  )?.source;
+}
 
 function formatDueDate(value?: number | null) {
   if (!value) return null;
@@ -144,21 +198,22 @@ export default function LessonList() {
 
       const assignedItems = assignments
         .filter((assignment) => assignment.status !== "cancelled")
-        .map((assignment) => {
+        .reduce<AssignedTrainingItem[]>((items, assignment) => {
           const lesson = lessonsById.get(assignment.lessonId);
           if (!lesson) {
-            return null;
+            return items;
           }
 
-          return {
+          items.push({
             ...assignment,
             lessonTitle: lesson.title,
             lessonSummary: lesson.summary,
             progress: assignmentProgress[assignment.id]?.completion ?? 0,
-            organizationName: organizationsById.get(assignment.organizationId),
-          } satisfies AssignedTrainingItem;
-        })
-        .filter((assignment): assignment is AssignedTrainingItem => !!assignment)
+            organizationName: organizationsById.get(assignment.organizationId) ?? undefined,
+          });
+
+          return items;
+        }, [])
         .sort((a, b) => {
           const aPriority = a.status === "overdue" ? 0 : a.status === "in_progress" ? 1 : a.status === "not_started" ? 2 : 3;
           const bPriority = b.status === "overdue" ? 0 : b.status === "in_progress" ? 1 : b.status === "not_started" ? 2 : 3;
@@ -273,6 +328,7 @@ export default function LessonList() {
     (item: AssignedTrainingItem) => {
       const tone = getAssignmentTone(item.status);
       const dueLabel = formatDueDate(item.dueAt);
+      const thumbnailSource = getTrainingThumbnailSource(item.lessonTitle);
 
       return (
         <Pressable
@@ -289,6 +345,14 @@ export default function LessonList() {
             marginBottom: 10,
           })}
         >
+          {thumbnailSource && (
+            <Image
+              source={thumbnailSource}
+              resizeMode="contain"
+              style={trainingThumbnailStyle}
+            />
+          )}
+
           <View
             style={{
               flexDirection: "row",
@@ -485,6 +549,7 @@ export default function LessonList() {
         }
         renderItem={({ item }) => {
           const p = progress[item.id] ?? 0;
+          const thumbnailSource = getTrainingThumbnailSource(item.title);
 
           return (
             <Pressable
@@ -496,6 +561,17 @@ export default function LessonList() {
                 padding: 14,
               })}
             >
+              {thumbnailSource && (
+                <Image
+                  source={thumbnailSource}
+                  resizeMode="contain"
+                  style={{
+                    ...trainingThumbnailStyle,
+                    marginBottom: 12,
+                  }}
+                />
+              )}
+
               {/* Title row + admin buttons */}
               <View
                 style={{

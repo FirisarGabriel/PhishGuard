@@ -212,14 +212,14 @@ export default function ClassicQuizEditQuestion() {
         qid = String(questionId);
         await updateQuestion(qid, {
           text: text.trim(),
-          explanation: explanation.trim() || null,
+          explanation: explanation.trim() || undefined,
           order,
         });
       } else {
         const created = await createQuestion({
           quizId: String(quizId),
           text: text.trim(),
-          explanation: explanation.trim() || null,
+          explanation: explanation.trim() || undefined,
           order,
         });
         qid = created.id;

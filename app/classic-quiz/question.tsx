@@ -66,7 +66,7 @@ export default function QuizQuestion() {
     if (isLast) {
       router.replace({
         pathname: "/classic-quiz/results",
-        params: { attemptId, score: String(score), total: String(total) },
+        params: { quizId, attemptId, score: String(score), total: String(total) },
       });
     } else {
       setIndex((i) => i + 1);
@@ -107,6 +107,13 @@ export default function QuizQuestion() {
           const pressed = selected === opt.id;
           const correct = opt.isCorrect === 1 && showFeedback;
           const wrong = pressed && opt.isCorrect !== 1 && showFeedback;
+          const backgroundColor = correct
+            ? theme.colors.successBg
+            : wrong
+            ? theme.colors.errorBg
+            : pressed
+            ? theme.colors.cardPressed
+            : theme.colors.card;
 
           return (
             <Pressable
@@ -119,7 +126,7 @@ export default function QuizQuestion() {
                   : wrong
                   ? theme.colors.error
                   : theme.colors.border,
-                backgroundColor: pressed ? theme.colors.cardPressed : theme.colors.card,
+                backgroundColor,
                 borderRadius: theme.radius,
                 padding: 14,
               }}

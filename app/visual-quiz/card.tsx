@@ -204,9 +204,11 @@ export default function VisualQuizCard() {
           router.replace({
             pathname: "/visual-quiz/results",
             params: {
+              quizId,
               attemptId,
               score: String(scoreRef.current),
               total: String(total),
+              variant: String(variant ?? "beginner"),
             },
           });
           return;

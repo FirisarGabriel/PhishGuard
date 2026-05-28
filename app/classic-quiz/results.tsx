@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { theme } from "../../src/theme";
-import { finishAttempt } from "../../src/repos/quiz";
+import { finishAttempt, startAttempt } from "../../src/repos/quiz";
 import { evaluateQuizAchievements } from "../../src/repos/achievements";
 import { useAchievementToast } from "../../src/achievements/AchievementToastProvider";
 import { useAuth } from "../../src/auth/AuthProvider";
@@ -12,7 +12,9 @@ export default function QuizResults() {
   const router = useRouter();
   const { user } = useAuth();
   const { notifyAchievements } = useAchievementToast();
-  const { attemptId, score, total } = useLocalSearchParams<{
+  const [retaking, setRetaking] = useState(false);
+  const { quizId, attemptId, score, total } = useLocalSearchParams<{
+    quizId: string;
     attemptId: string;
     score: string;
     total: string;
@@ -39,6 +41,26 @@ export default function QuizResults() {
     })();
   }, [attemptId, s, user?.id, notifyAchievements]);
 
+  const onRetake = useCallback(async () => {
+    if (!user?.id || !quizId || retaking) {
+      if (!user?.id || !quizId) {
+        router.replace("/classic-quiz");
+      }
+      return;
+    }
+
+    try {
+      setRetaking(true);
+      const nextAttemptId = await startAttempt(user.id, String(quizId));
+      router.replace({
+        pathname: "/classic-quiz/question",
+        params: { quizId: String(quizId), attemptId: nextAttemptId, index: "0" },
+      });
+    } finally {
+      setRetaking(false);
+    }
+  }, [quizId, retaking, router, user?.id]);
+
   return (
     <View style={{ ...ui.screenPadded, ...ui.centered }}>
       <Text style={theme.typography.titleXl}>Quiz Completed!</Text>
@@ -46,7 +68,21 @@ export default function QuizResults() {
         You scored {s} out of {t} ({pct}%)
       </Text>
 
-      <View style={{ flexDirection: "row", gap: 12, marginTop: 28 }}>
+      <View style={{ width: "100%", maxWidth: 320, gap: 12, marginTop: 28 }}>
+        <Pressable
+          onPress={onRetake}
+          disabled={retaking}
+          style={{
+            ...ui.button,
+            paddingVertical: 12,
+            paddingHorizontal: 24,
+            opacity: retaking ? 0.7 : 1,
+          }}
+          accessibilityLabel="Retake Quiz"
+        >
+          <Text>Retake Quiz</Text>
+        </Pressable>
+
         <Pressable
           onPress={() => router.replace("/classic-quiz")}
           style={{

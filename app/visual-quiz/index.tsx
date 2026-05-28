@@ -21,7 +21,7 @@ import { useRole } from "../../src/auth/useRole";
 import {
   createVisualCard,
   deleteVisualCard,
-  getLatestVisualScoresMap,
+  getBestVisualScoresMap,
   getQuizBySlug,
   getVisualCards,
   moveVisualCard,
@@ -357,7 +357,7 @@ export default function VisualQuizIntro() {
 
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [cards, setCards] = useState<VisualCard[]>([]);
-  const [latestScores, setLatestScores] = useState<
+  const [bestScores, setBestScores] = useState<
     Partial<Record<VisualQuizVariantId, number>>
   >({});
   const [loading, setLoading] = useState(true);
@@ -386,7 +386,7 @@ export default function VisualQuizIntro() {
   const load = useCallback(async (options?: { showLoader?: boolean }) => {
     if (!userId) {
       setErr("Not signed in.");
-      setLatestScores({});
+      setBestScores({});
       setLoading(false);
       return;
     }
@@ -406,8 +406,8 @@ export default function VisualQuizIntro() {
       const visualCards = await getVisualCards(q.id);
       setCards(visualCards);
 
-      const scoreMap = await getLatestVisualScoresMap(userId, q.id);
-      setLatestScores(scoreMap);
+      const scoreMap = await getBestVisualScoresMap(userId, q.id);
+      setBestScores(scoreMap);
     } catch (e: any) {
       setErr(e?.message ?? "Failed to load quiz.");
     } finally {
@@ -773,9 +773,9 @@ export default function VisualQuizIntro() {
                 </Text>
 
                 <Text style={{ color: theme.colors.text, fontWeight: "600" }}>
-                  {latestScores[item.id] !== undefined
-                    ? `Last score: ${latestScores[item.id]}/${item.cards.length}`
-                    : "Last score: no attempts yet"}
+                  {bestScores[item.id] !== undefined
+                    ? `Best score: ${bestScores[item.id]}%`
+                    : "Best score: no attempts yet"}
                 </Text>
               </Pressable>
             );
