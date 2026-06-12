@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,7 +12,11 @@ import { router, useFocusEffect } from "expo-router";
 
 import { useAuth } from "../src/auth/AuthProvider";
 import { useRole } from "../src/auth/useRole";
-import { listAuditLogEntries, type AuditLogEntry } from "../src/observability/audit";
+import {
+  clearAuditLogEntries,
+  listAuditLogEntries,
+  type AuditLogEntry,
+} from "../src/observability/audit";
 import { theme } from "../src/theme";
 import { ui } from "../src/ui";
 
@@ -136,6 +141,7 @@ export default function AdminAuditScreen() {
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isAllowed = role === "ADMIN" && adminMode;
@@ -170,6 +176,40 @@ export default function AdminAuditScreen() {
     await load();
     setRefreshing(false);
   }, [load]);
+
+  const onClearData = useCallback(() => {
+    if (!entries.length || clearing) {
+      return;
+    }
+
+    Alert.alert(
+      "Clear audit data",
+      "This will delete audit log entries from Supabase for this admin view.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setError(null);
+              setClearing(true);
+              const deletedCount = await clearAuditLogEntries();
+              if (entries.length > 0 && deletedCount === 0) {
+                throw new Error("No audit entries were deleted. Check the audit_log delete policy.");
+              }
+              setEntries([]);
+              await load();
+            } catch (e: any) {
+              setError(e?.message ?? "Failed to clear audit log.");
+            } finally {
+              setClearing(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [clearing, entries.length, load]);
 
   const summary = useMemo(() => {
     return entries.reduce(
@@ -231,17 +271,36 @@ export default function AdminAuditScreen() {
             Recent manager actions and sync events from Supabase audit_log.
           </Text>
         </View>
-        <Pressable
-          onPress={() => router.back()}
-          style={({ pressed }) => ({
-            opacity: pressed ? 0.8 : 1,
-            ...ui.button,
-            paddingVertical: 10,
-            paddingHorizontal: 14,
-          })}
-        >
-          <Text style={{ fontWeight: "700" }}>Back</Text>
-        </Pressable>
+        <View style={{ alignItems: "flex-end", gap: 8 }}>
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.8 : 1,
+              ...ui.button,
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+            })}
+          >
+            <Text style={{ fontWeight: "700" }}>Back</Text>
+          </Pressable>
+
+          <Pressable
+            disabled={!entries.length || clearing}
+            onPress={onClearData}
+            style={({ pressed }) => ({
+              opacity: pressed || clearing || !entries.length ? 0.55 : 1,
+              ...ui.chip,
+              backgroundColor: theme.colors.errorBg,
+              borderColor: theme.colors.errorBorder,
+              paddingVertical: 7,
+              paddingHorizontal: 12,
+            })}
+          >
+            <Text style={{ color: theme.colors.error, fontWeight: "700" }}>
+              {clearing ? "Clearing..." : "Clear data"}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={{ ...ui.screenSection, gap: 10 }}>

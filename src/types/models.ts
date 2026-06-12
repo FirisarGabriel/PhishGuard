@@ -6,7 +6,7 @@ export type Lesson = {
   order: number;
 };
 
-export type TrainingBlockType = "text" | "question_single";
+export type TrainingBlockType = "text" | "question_single" | "image";
 
 export type TrainingBlock = {
   id: string;

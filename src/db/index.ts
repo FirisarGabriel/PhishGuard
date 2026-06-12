@@ -482,4 +482,112 @@ export async function runMigrations() {
     `CREATE INDEX IF NOT EXISTS idx_AssignmentTrainingBlockProgress_user_lesson ON AssignmentTrainingBlockProgress(userId, lessonId)`,
     `CREATE INDEX IF NOT EXISTS idx_AssignmentTrainingBlockProgress_recipient ON AssignmentTrainingBlockProgress(assignmentRecipientId)`,
   ]);
+
+  // --- MIGRATION 011: Additional classic quiz questions ---
+  await applyMigration("011-extra-classic-quiz-questions", [
+    `
+    INSERT OR IGNORE INTO Question (id, quizId, text, explanation, "order")
+    SELECT
+      'classic-basics-login-alert',
+      q.id,
+      'You receive a login alert from a service you use, but you did not try to sign in. What is the safest next step?',
+      'Using a trusted path avoids fake links while still letting you verify the alert.',
+      COALESCE((SELECT MAX("order") FROM Question WHERE quizId = q.id), 0) + 1
+    FROM Quiz q
+    WHERE q.slug = 'classic'
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-basics-login-alert-o1', 'classic-basics-login-alert', 'Click the email link and log in to check', 0, 1
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-basics-login-alert')
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-basics-login-alert-o2', 'classic-basics-login-alert', 'Open the service from a trusted bookmark or app and review account activity', 1, 2
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-basics-login-alert')
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-basics-login-alert-o3', 'classic-basics-login-alert', 'Forward the email to coworkers to ask what they think', 0, 3
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-basics-login-alert')
+    `,
+    `
+    INSERT OR IGNORE INTO Question (id, quizId, text, explanation, "order")
+    SELECT
+      'classic-basics-password-request',
+      q.id,
+      'A message asks for your password so support can fix your account. What should you do?',
+      'Legitimate support teams should not ask for your password.',
+      COALESCE((SELECT MAX("order") FROM Question WHERE quizId = q.id), 0) + 1
+    FROM Quiz q
+    WHERE q.slug = 'classic'
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-basics-password-request-o1', 'classic-basics-password-request', 'Share it only if the sender looks official', 0, 1
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-basics-password-request')
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-basics-password-request-o2', 'classic-basics-password-request', 'Refuse and report it, because support should never need your password', 1, 2
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-basics-password-request')
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-basics-password-request-o3', 'classic-basics-password-request', 'Send a screenshot from your password manager', 0, 3
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-basics-password-request')
+    `,
+    `
+    INSERT OR IGNORE INTO Question (id, quizId, text, explanation, "order")
+    SELECT
+      'classic-email-generic-greeting',
+      q.id,
+      'Which greeting is a warning sign in an email that claims to be from your bank?',
+      'Generic greetings can indicate a mass phishing message.',
+      COALESCE((SELECT MAX("order") FROM Question WHERE quizId = q.id), 0) + 1
+    FROM Quiz q
+    WHERE q.slug = 'classic-email'
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-email-generic-greeting-o1', 'classic-email-generic-greeting', 'Dear customer, with no account-specific detail', 1, 1
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-email-generic-greeting')
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-email-generic-greeting-o2', 'classic-email-generic-greeting', 'Your full name and a normal service notification', 0, 2
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-email-generic-greeting')
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-email-generic-greeting-o3', 'classic-email-generic-greeting', 'A monthly statement notice you expected', 0, 3
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-email-generic-greeting')
+    `,
+    `
+    INSERT OR IGNORE INTO Question (id, quizId, text, explanation, "order")
+    SELECT
+      'classic-email-suspicious-sender',
+      q.id,
+      'Which sender address is most suspicious for a Microsoft password reset email?',
+      'The real domain is microsoft-login-help.com, not microsoft.com.',
+      COALESCE((SELECT MAX("order") FROM Question WHERE quizId = q.id), 0) + 1
+    FROM Quiz q
+    WHERE q.slug = 'classic-email'
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-email-suspicious-sender-o1', 'classic-email-suspicious-sender', 'no-reply@account.microsoft.com', 0, 1
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-email-suspicious-sender')
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-email-suspicious-sender-o2', 'classic-email-suspicious-sender', 'security@microsoft-login-help.com', 1, 2
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-email-suspicious-sender')
+    `,
+    `
+    INSERT OR IGNORE INTO Option (id, questionId, text, isCorrect, "order")
+    SELECT 'classic-email-suspicious-sender-o3', 'classic-email-suspicious-sender', 'account-security-noreply@accountprotection.microsoft.com', 0, 3
+    WHERE EXISTS (SELECT 1 FROM Question WHERE id = 'classic-email-suspicious-sender')
+    `,
+  ]);
 }

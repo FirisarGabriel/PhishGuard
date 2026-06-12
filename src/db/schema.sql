@@ -864,6 +864,12 @@ with check (
 	)
 );
 
+drop policy if exists "audit log deleted by platform admins" on public.audit_log;
+create policy "audit log deleted by platform admins"
+on public.audit_log
+for delete
+using (public.is_platform_admin());
+
 drop policy if exists "inbox notifications visible to owner" on public.user_inbox_notifications;
 create policy "inbox notifications visible to owner"
 on public.user_inbox_notifications

@@ -24,6 +24,17 @@ function getBlockProgressTable(context?: TrainingProgressContext) {
     : "TrainingBlockProgress";
 }
 
+export type LessonBlockInput = {
+  type: TrainingBlock["type"];
+  title?: string | null;
+  body?: string | null;
+  isRequired?: boolean | 0 | 1;
+  options?: Array<{
+    label: string;
+    isCorrect: boolean | 0 | 1;
+  }>;
+};
+
 export async function getLessons(): Promise<Lesson[]> {
   const res = await execute(`SELECT * FROM Lesson ORDER BY "order" ASC`);
   return res.rows as Lesson[];
@@ -69,6 +80,75 @@ export async function getLessonBlocks(
   }
 
   return out;
+}
+
+function blockInputToLegacyContent(blocks: LessonBlockInput[]) {
+  return blocks
+    .map((block) => {
+      const title = block.title?.trim();
+      const body = block.type === "image" ? "" : block.body?.trim();
+      return [title, body].filter(Boolean).join("\n");
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export async function replaceLessonBlocks(
+  lessonId: string,
+  blocks: LessonBlockInput[]
+): Promise<void> {
+  await execute(
+    `DELETE FROM TrainingBlockOption WHERE blockId IN (
+      SELECT id FROM TrainingBlock WHERE lessonId=?
+    )`,
+    [lessonId]
+  );
+  await execute(`DELETE FROM TrainingBlockProgress WHERE lessonId=?`, [lessonId]);
+  await execute(`DELETE FROM AssignmentTrainingBlockProgress WHERE lessonId=?`, [
+    lessonId,
+  ]);
+  await execute(`DELETE FROM TrainingBlock WHERE lessonId=?`, [lessonId]);
+  await execute(`DELETE FROM LessonProgress WHERE lessonId=?`, [lessonId]);
+  await execute(`DELETE FROM AssignmentLessonProgress WHERE lessonId=?`, [lessonId]);
+
+  let blockOrder = 1;
+  for (const block of blocks) {
+    const blockId = uuid();
+    await execute(
+      `
+      INSERT INTO TrainingBlock (id, lessonId, type, title, body, "order", isRequired, pendingSync)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      `,
+      [
+        blockId,
+        lessonId,
+        block.type,
+        block.title?.trim() || null,
+        block.body?.trim() || null,
+        blockOrder++,
+        block.isRequired === false || block.isRequired === 0 ? 0 : 1,
+      ]
+    );
+
+    if (block.type === "question_single") {
+      let optionOrder = 1;
+      for (const option of block.options ?? []) {
+        await execute(
+          `
+          INSERT INTO TrainingBlockOption (id, blockId, label, isCorrect, "order")
+          VALUES (?, ?, ?, ?, ?)
+          `,
+          [
+            uuid(),
+            blockId,
+            option.label.trim(),
+            option.isCorrect === true || option.isCorrect === 1 ? 1 : 0,
+            optionOrder++,
+          ]
+        );
+      }
+    }
+  }
 }
 
 export async function getBlockProgressMap(
@@ -678,6 +758,23 @@ export async function createLesson(input: {
   return lesson;
 }
 
+export async function createLessonWithBlocks(input: {
+  title: string;
+  summary: string;
+  order?: number;
+  blocks: LessonBlockInput[];
+}): Promise<Lesson> {
+  const lesson = await createLesson({
+    title: input.title,
+    summary: input.summary,
+    content: blockInputToLegacyContent(input.blocks),
+    order: input.order,
+  });
+
+  await replaceLessonBlocks(lesson.id, input.blocks);
+  return lesson;
+}
+
 /**
  * Update an existing lesson
  */
@@ -706,12 +803,37 @@ export async function updateLesson(
   );
 }
 
+export async function updateLessonWithBlocks(
+  id: string,
+  patch: {
+    title: string;
+    summary: string;
+    order?: number;
+    blocks: LessonBlockInput[];
+  }
+): Promise<void> {
+  await updateLesson(id, {
+    title: patch.title,
+    summary: patch.summary,
+    content: blockInputToLegacyContent(patch.blocks),
+    order: patch.order,
+  });
+  await replaceLessonBlocks(id, patch.blocks);
+}
+
 /**
  * Delete a lesson + related progress rows
  */
 export async function deleteLesson(id: string): Promise<void> {
   // cleanup progress first (safe even if no rows)
+  await execute(`DELETE FROM TrainingBlockOption WHERE blockId IN (
+    SELECT id FROM TrainingBlock WHERE lessonId=?
+  )`, [id]);
+  await execute(`DELETE FROM TrainingBlockProgress WHERE lessonId=?`, [id]);
+  await execute(`DELETE FROM AssignmentTrainingBlockProgress WHERE lessonId=?`, [id]);
+  await execute(`DELETE FROM TrainingBlock WHERE lessonId=?`, [id]);
   await execute(`DELETE FROM LessonProgress WHERE lessonId=?`, [id]);
+  await execute(`DELETE FROM AssignmentLessonProgress WHERE lessonId=?`, [id]);
 
   // delete lesson
   await execute(`DELETE FROM Lesson WHERE id=?`, [id]);

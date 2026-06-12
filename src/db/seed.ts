@@ -2,7 +2,11 @@ import { execute } from "./index";
 import "react-native-get-random-values";
 import { v4 as uuid } from "uuid";
 
-import { QUIZ_QUESTIONS, type QuizQuestion } from "../mockClassicQuiz";
+import {
+  CLASSIC_QUIZ_QUESTIONS_BY_SLUG,
+  QUIZ_QUESTIONS,
+  type QuizQuestion,
+} from "../mockClassicQuiz";
 import { VISUAL_CARDS } from "../mockVisualQuiz";
 import { getDefaultVisualCardVariantByIndex } from "../visualQuiz";
 
@@ -420,16 +424,21 @@ async function quizExists(slug: string): Promise<boolean> {
   return (r.rows?.[0]?.c ?? 0) > 0;
 }
 
-async function insertClassicQuiz(slug: string, title: string, description: string) {
+async function insertClassicQuiz(
+  slug: string,
+  title: string,
+  description: string,
+  questions: QuizQuestion[] = QUIZ_QUESTIONS
+) {
   const classicId = uuid();
   await execute(
     `INSERT INTO Quiz (id, slug, title, description, kind) VALUES (?, ?, ?, ?, ?)`,
     [classicId, slug, title, description, "classic"]
   );
 
-  // Insert questions & options from QUIZ_QUESTIONS[]
+  // Insert questions & options for this quiz.
   let qOrder = 1;
-  for (const q of QUIZ_QUESTIONS as QuizQuestion[]) {
+  for (const q of questions) {
     const qId = uuid();
 
     const correctOpt = q.options.find((o) => o.correct);
@@ -477,7 +486,12 @@ export async function seedQuizzes() {
 
   for (const s of classicSeeds) {
     if (!(await quizExists(s.slug))) {
-      await insertClassicQuiz(s.slug, s.title, s.description);
+      await insertClassicQuiz(
+        s.slug,
+        s.title,
+        s.description,
+        CLASSIC_QUIZ_QUESTIONS_BY_SLUG[s.slug] ?? QUIZ_QUESTIONS
+      );
     }
   }
 

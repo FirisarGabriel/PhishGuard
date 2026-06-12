@@ -44,6 +44,25 @@ import type {
   AssignmentRecipientStatus,
 } from "../types/models";
 
+function isMissingAssignmentRecipientError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const record = error as Record<string, unknown>;
+  const code = typeof record.code === "string" ? record.code : null;
+  const message = typeof record.message === "string" ? record.message : "";
+  const details = typeof record.details === "string" ? record.details : "";
+
+  return (
+    code === "23503" &&
+    (message.includes("assignment_recipient") ||
+      details.includes("assignment_recipient") ||
+      message.includes("assignment_recipients") ||
+      details.includes("assignment_recipients"))
+  );
+}
+
 function toMillis(value: string | null | undefined): number | null {
   if (!value) return null;
   const parsed = Date.parse(value);
@@ -339,6 +358,11 @@ async function pushPendingProgress(userId: string) {
     listPendingQuizAttempts(userId),
   ]);
 
+  const syncedAssignmentLessonProgressIds: string[] = [];
+  const orphanAssignmentLessonProgressIds: string[] = [];
+  const syncedAssignmentBlockProgressIds: string[] = [];
+  const orphanAssignmentBlockProgressIds: string[] = [];
+
   for (const row of lessonProgress) {
     const payload = {
       id: row.id,
@@ -363,6 +387,11 @@ async function pushPendingProgress(userId: string) {
   }
 
   for (const row of assignmentLessonProgress) {
+    if (!row.assignmentRecipientId) {
+      orphanAssignmentLessonProgressIds.push(row.id);
+      continue;
+    }
+
     const payload = {
       id: row.id,
       user_id: row.userId,
@@ -381,8 +410,15 @@ async function pushPendingProgress(userId: string) {
     });
 
     if (error) {
+      if (isMissingAssignmentRecipientError(error)) {
+        orphanAssignmentLessonProgressIds.push(row.id);
+        continue;
+      }
+
       throw error;
     }
+
+    syncedAssignmentLessonProgressIds.push(row.id);
   }
 
   for (const row of blockProgress) {
@@ -409,6 +445,11 @@ async function pushPendingProgress(userId: string) {
   }
 
   for (const row of assignmentBlockProgress) {
+    if (!row.assignmentRecipientId) {
+      orphanAssignmentBlockProgressIds.push(row.id);
+      continue;
+    }
+
     const payload = {
       id: row.id,
       user_id: row.userId,
@@ -427,8 +468,15 @@ async function pushPendingProgress(userId: string) {
     });
 
     if (error) {
+      if (isMissingAssignmentRecipientError(error)) {
+        orphanAssignmentBlockProgressIds.push(row.id);
+        continue;
+      }
+
       throw error;
     }
+
+    syncedAssignmentBlockProgressIds.push(row.id);
   }
 
   for (const row of quizAttempts) {
@@ -456,15 +504,23 @@ async function pushPendingProgress(userId: string) {
   await Promise.all([
     markLessonProgressSynced(lessonProgress.map((row) => row.id)),
     markTrainingBlockProgressSynced(blockProgress.map((row) => row.id)),
-    markAssignmentLessonProgressSynced(assignmentLessonProgress.map((row) => row.id)),
-    markAssignmentTrainingBlockProgressSynced(assignmentBlockProgress.map((row) => row.id)),
+    markAssignmentLessonProgressSynced([
+      ...syncedAssignmentLessonProgressIds,
+      ...orphanAssignmentLessonProgressIds,
+    ]),
+    markAssignmentTrainingBlockProgressSynced([
+      ...syncedAssignmentBlockProgressIds,
+      ...orphanAssignmentBlockProgressIds,
+    ]),
     markQuizAttemptsSynced(quizAttempts.map((row) => row.id)),
   ]);
 
   return {
-    lessonProgress: lessonProgress.length + assignmentLessonProgress.length,
-    blockProgress: blockProgress.length + assignmentBlockProgress.length,
+    lessonProgress: lessonProgress.length + syncedAssignmentLessonProgressIds.length,
+    blockProgress: blockProgress.length + syncedAssignmentBlockProgressIds.length,
     quizAttempts: quizAttempts.length,
+    skippedAssignmentLessonProgress: orphanAssignmentLessonProgressIds.length,
+    skippedAssignmentBlockProgress: orphanAssignmentBlockProgressIds.length,
   };
 }
 
@@ -532,7 +588,13 @@ async function pullRemoteProgress(userId: string) {
 
 export type HybridSyncResult = {
   b2b: { organizations: number; assignments: number };
-  pushed: { lessonProgress: number; blockProgress: number; quizAttempts: number };
+  pushed: {
+    lessonProgress: number;
+    blockProgress: number;
+    quizAttempts: number;
+    skippedAssignmentLessonProgress: number;
+    skippedAssignmentBlockProgress: number;
+  };
   pulled: { lessonProgress: number; blockProgress: number; quizAttempts: number };
 };
 
@@ -558,9 +620,12 @@ export async function runHybridSync(
       pulled.lessonProgress +
       pulled.blockProgress +
       pulled.quizAttempts;
+    const skippedOperations =
+      pushed.skippedAssignmentLessonProgress +
+      pushed.skippedAssignmentBlockProgress;
     const durationMs = Date.now() - startedAt;
 
-    if (totalOperations > 0 || durationMs >= 2500) {
+    if (totalOperations > 0 || skippedOperations > 0 || durationMs >= 2500) {
       await recordAuditEventBestEffort({
         actorUserId: safeUserId,
         category: "sync",
@@ -579,6 +644,8 @@ export async function runHybridSync(
           pulledLessonProgress: pulled.lessonProgress,
           pulledBlockProgress: pulled.blockProgress,
           pulledQuizAttempts: pulled.quizAttempts,
+          skippedAssignmentLessonProgress: pushed.skippedAssignmentLessonProgress,
+          skippedAssignmentBlockProgress: pushed.skippedAssignmentBlockProgress,
           noop: totalOperations === 0,
         },
       });

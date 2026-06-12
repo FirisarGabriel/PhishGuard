@@ -7,6 +7,7 @@ import ProgressBar from "../../src/ProgressBar";
 import { theme } from "../../src/theme";
 import { ui } from "../../src/ui";
 import { getTrainingThumbnailSource } from "../../src/trainingThumbnails";
+import { getTrainingBlockImageSource } from "../../src/trainingBlockImages";
 import { useAuth } from "../../src/auth/AuthProvider";
 import { useAchievementToast } from "../../src/achievements/AchievementToastProvider";
 import { evaluateTrainingAchievements } from "../../src/repos/achievements";
@@ -502,6 +503,107 @@ export default function LessonDetail() {
     );
   };
 
+  const renderImageBlock = (block: TrainingBlockWithOptions) => {
+    const done = blockProgress[block.id]?.status === "completed";
+    const busy = savingBlockId === block.id;
+    const imageSource = getTrainingBlockImageSource(block.body);
+
+    return (
+      <View
+        style={{
+          ...ui.cardElevated,
+          padding: 16,
+          marginBottom: 0,
+          gap: 12,
+          backgroundColor: theme.colors.surface1,
+          borderColor: done ? theme.colors.success : theme.colors.borderStrong,
+        }}
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: theme.colors.muted, fontSize: 12, fontWeight: "600" }}>
+              IMAGE EXAMPLE
+            </Text>
+            {!!block.title && (
+              <Text style={{ fontSize: 18, fontWeight: "700", color: theme.colors.text }}>
+                {block.title}
+              </Text>
+            )}
+          </View>
+
+          <View
+            style={{
+              ...ui.chip,
+              backgroundColor: done ? theme.colors.successBg : theme.colors.surface3,
+              borderColor: done ? theme.colors.success : theme.colors.borderStrong,
+            }}
+          >
+            <Text
+              style={{
+                color: done ? theme.colors.success : theme.colors.muted,
+                fontWeight: "700",
+              }}
+            >
+              {done ? "Viewed" : "View"}
+            </Text>
+          </View>
+        </View>
+
+        {imageSource ? (
+          <Image
+            source={imageSource}
+            resizeMode="contain"
+            style={{
+              width: "100%",
+              height: 220,
+              borderRadius: theme.radius,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              backgroundColor: theme.colors.surface2,
+            }}
+          />
+        ) : (
+          <View style={ui.mutedPanel}>
+            <Text style={{ color: theme.colors.muted }}>
+              This image source is unavailable.
+            </Text>
+          </View>
+        )}
+
+        <Pressable
+          disabled={busy || done}
+          onPress={() => onMarkTextRead(block.id)}
+          style={({ pressed }) => ({
+            opacity: pressed || busy || done ? 0.85 : 1,
+            borderWidth: 1,
+            borderColor: done ? theme.colors.success : theme.colors.borderStrong,
+            borderRadius: theme.radiusSm,
+            padding: 12,
+            alignItems: "center",
+            backgroundColor: done ? theme.colors.successBg : theme.colors.surface3,
+            ...theme.elevation.subtle,
+          })}
+        >
+          <Text
+            style={{
+              fontWeight: "700",
+              color: done ? theme.colors.success : theme.colors.text,
+            }}
+          >
+            {done ? "Viewed" : busy ? "Saving..." : "Mark as viewed"}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  };
+
   const renderSingleChoiceBlock = (block: TrainingBlockWithOptions) => {
     const current = blockProgress[block.id];
     const selectedOptionId = current?.selectedOptionId ?? null;
@@ -862,6 +964,8 @@ export default function LessonDetail() {
               <View style={{ flex: 1 }}>
                 {block.type === "question_single"
                   ? renderSingleChoiceBlock(block)
+                  : block.type === "image"
+                    ? renderImageBlock(block)
                   : renderTextBlock(block)}
               </View>
             </View>

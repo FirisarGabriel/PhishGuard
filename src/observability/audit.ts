@@ -52,6 +52,22 @@ export function getErrorMessage(error: unknown): string {
     return error;
   }
 
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    const parts = ["message", "details", "hint", "code"]
+      .map((key) => {
+        const value = record[key];
+        return typeof value === "string" && value.trim()
+          ? `${key}: ${value.trim()}`
+          : null;
+      })
+      .filter(Boolean);
+
+    if (parts.length) {
+      return parts.join(" | ");
+    }
+  }
+
   return "Unknown error";
 }
 
@@ -111,6 +127,19 @@ export async function listAuditLogEntries(limit = 100): Promise<AuditLogEntry[]>
     metadata: row.metadata && typeof row.metadata === "object" ? row.metadata : {},
     createdAt: Date.parse(row.created_at),
   }));
+}
+
+export async function clearAuditLogEntries(): Promise<number> {
+  const { count, error } = await supabase
+    .from("audit_log")
+    .delete({ count: "exact" })
+    .lt("created_at", new Date(Date.now() + 60_000).toISOString());
+
+  if (error) {
+    throw error;
+  }
+
+  return count ?? 0;
 }
 
 export async function withAuditEvent<T>(
